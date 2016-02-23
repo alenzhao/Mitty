@@ -79,11 +79,10 @@ class PopulationSimulator:
       os.makedirs(os.path.dirname(pop_db_name))
 
     self.chromosomes = params['chromosomes']
-    self.ref = mio.Fasta(
-      multi_fasta=ref_file or mitty.lib.rpath(base_dir, params['files'].get('reference_file', None)),
-      multi_dir=mitty.lib.rpath(base_dir, params['files'].get('reference_dir', None)),
-      chrom_list=self.chromosomes
-    )
+    multi_fasta = ref_file or mitty.lib.rpath(base_dir, params['files'].get('reference_file', None))
+    multi_dir = None if ref_file else mitty.lib.rpath(base_dir, params['files'].get('reference_dir', None))
+    self.ref = mio.Fasta(multi_fasta=multi_fasta, multi_dir=multi_dir, chrom_list=self.chromosomes)
+
     master_seed = int(params['rng']['master_seed'])
     assert 0 < master_seed < mitty.lib.SEED_MAX
 
