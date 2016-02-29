@@ -188,12 +188,15 @@ def cli(inbam, bad_bam, per_bam, cigar_errors, perfect_bam, window, x, no_index,
     return 'true' if v else 'false'
 
   new_header = bam_in_fp.header
+  pp = new_header['PG'][-1]['ID'] if 'PG' in new_header else None
+  if 'PG' not in new_header:
+    new_header['PG'] = []
   new_header['PG'].append({
     'CL': 'perfectbam ....',
     'ID': 'mitty-perfectbam',
     'PN': 'perfectbam',
     'VN': __version__,
-    'PP': new_header['PG'][-1]['ID'],
+    'PP': pp,
     'DS': 'window={:d}, cigar errors result in misalignments={:s}, extended_cigar={:s}'.
       format(window, true2str(cigar_errors), true2str(x))
   })
