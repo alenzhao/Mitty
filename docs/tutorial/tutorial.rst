@@ -162,9 +162,14 @@ can be stored in the FASTQ itself and seems to survive processing by all aligner
 
 .. command-output::  reads --qname
 
-.. command-output:: awk '/([0-9]+)D/ {print}' reads_c.fq | head -n 4
+.. command-output:: head -n 16 reads_c.fq | awk '/^@/ {print}'
     :cwd: .
     :shell:
+
+`reads generate` also writes out a .bed file apropriate for the chromosomes and ranges we took reads from.
+
+.. command-output::  cat reads.bed
+    :cwd: .
 
 
 Benchmarking alignment accuracy
@@ -177,7 +182,8 @@ First, use BWA-MEM to create an alignment :
 .. program-output:: pybwa reddus_pentalgus.fa.gz reads_c.fq bwa.bam -p -v
     :cwd: .
 
-(I got tired of typing out the commands needed to invoke BWA and then convert the SAM files)
+.. I got tired of typing out the commands needed to invoke BWA and then convert the SAM files so there is a script
+   called pybwa that does this for us
 
 .. command-output:: samtools tview -d T -p "NC_010142.1:50" bwa.bam reddus_pentalgus.fa
     :cwd: .

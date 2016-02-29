@@ -90,9 +90,9 @@ class ReadSimulator:
     :param params: dict loaded from json file
     """
 
-    fname_prefix = out_prefix or mitty.lib.rpath(base_dir, params['files']['output_prefix'])
-    if not os.path.exists(os.path.abspath(os.path.dirname(fname_prefix))):
-      os.makedirs(os.path.dirname(fname_prefix))
+    self.fname_prefix = out_prefix or mitty.lib.rpath(base_dir, params['files']['output_prefix'])
+    if not os.path.exists(os.path.abspath(os.path.dirname(self.fname_prefix))):
+      os.makedirs(os.path.dirname(self.fname_prefix))
 
     self.ref = mio.Fasta(multi_fasta=ref_file or mitty.lib.rpath(base_dir, params['files'].get('reference_file', None)),
                          multi_dir=mitty.lib.rpath(base_dir, params['files'].get('reference_dir', None)),
@@ -135,11 +135,11 @@ class ReadSimulator:
 
     fname_suffix, open_fun = ('.fq.gz', gzip.open) if params['files'].get('gzipped', False) else ('.fq', open)
     if params['files'].get('interleaved', True):
-      self.fastq_fp = [open_fun(fname_prefix + fname_suffix, 'w')] * 2
-      self.fastq_c_fp = [open_fun(fname_prefix + '_c' + fname_suffix, 'w')] * 2 if self.corrupt_reads else [None, None]
+      self.fastq_fp = [open_fun(self.fname_prefix + fname_suffix, 'w')] * 2
+      self.fastq_c_fp = [open_fun(self.fname_prefix + '_c' + fname_suffix, 'w')] * 2 if self.corrupt_reads else [None, None]
     else:  # Need two files separately
-      self.fastq_fp = [open_fun(fname_prefix + '_1' + fname_suffix, 'w'), open_fun(fname_prefix + '_2' + fname_suffix, 'w')]
-      self.fastq_c_fp = [open_fun(fname_prefix + '_c_1' + fname_suffix, 'w'), open_fun(fname_prefix + '_c_2' + fname_suffix, 'w')] if self.corrupt_reads else [None, None]
+      self.fastq_fp = [open_fun(self.fname_prefix + '_1' + fname_suffix, 'w'), open_fun(self.fname_prefix + '_2' + fname_suffix, 'w')]
+      self.fastq_c_fp = [open_fun(self.fname_prefix + '_c_1' + fname_suffix, 'w'), open_fun(self.fname_prefix + '_c_2' + fname_suffix, 'w')] if self.corrupt_reads else [None, None]
 
     self.templates_written = 0
     self.reads_generated = 0
@@ -195,6 +195,18 @@ class ReadSimulator:
   def get_coverage_done(self):
     return float(self.bases_covered / self.sum_of_chromosome_lengths)
     # This is approximate, since sample will have different length than reference, reference has 'N's, but good enough
+
+  def bed_file(self):
+    """Spit out text for a BED file."""
+    chrom_meta = self.ref.get_seq_metadata()
+    bed_data = [(chrom_meta[c - 1]['seq_id'].split()[0],
+                 int(self.chromosome_regions[c]['start_f'] * chrom_meta[c - 1]['seq_len']),
+                 int(self.chromosome_regions[c]['stop_f'] * chrom_meta[c - 1]['seq_len']))
+                for c in self.chromosomes]
+    bed_str = ''
+    for row in bed_data:
+      bed_str += '{}\t{}\t{}\n'.format(*row)
+    return bed_str
 
 
 def generate_reads(seq, seq_c, var_locs_alt_coords, variant_window,
@@ -317,7 +329,14 @@ def cli():
 @click.option('-v', count=True, help='Verbosity level')
 @click.option('-p', is_flag=True, help='Show progress bar')
 def generate(param_fname, ref, db, out_prefix, v, p):
-  """Generate reads (fastq) given a parameter file"""
+  """Generate reads (fastq) given a parameter file
+
+  \b
+  File outputs are:
+  out_prefix.fq   - perfect reads file
+  out_prefix_c.fq - corrupted reads file  (if corrupted reads are requested)
+  out_prefix.bed  - bed file denoting which chroms and ranges are present in the simulation
+  """
   level = logging.DEBUG if v > 1 else logging.WARNING
   logging.basicConfig(level=level)
   if v == 1:
@@ -336,6 +355,9 @@ def generate(param_fname, ref, db, out_prefix, v, p):
           bar.update(1)
   t1 = time.time()
   logger.debug('Took {:f}s to write {:d} reads ({:f} coverage)'.format(t1 - t0, simulation.get_read_count(), simulation.get_coverage_done()))
+
+  with open(simulation.fname_prefix + '.bed', 'w') as bed_fp:
+    bed_fp.write(simulation.bed_file())
 
 
 @cli.group()
