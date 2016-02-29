@@ -30,7 +30,7 @@ def cli(
   arguments = ['perfectbam', inbam, '-v', '--window', str(window)] \
               + (['--cigar-errors'] if cigar_errors else []) \
               + ['--bad-bam', bad_bam, '--per-bam', per_bam] \
-              + ['-p'] if p else []
+              + (['-p'] if p else [])
   subprocess.check_call(arguments)
 
   circle_plot = prefix + '.cir.pdf'
