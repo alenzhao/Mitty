@@ -43,7 +43,8 @@ def cli(
   indel_json = prefix + '.indel.json'
 
   # alindel
-  arguments = ['alindel', prog_bar, '--sample-name', sample_name, '--indel-range', str(indel_range), per_bam, gdb, indel_json]
+  arguments = ['alindel', '--sample-name', sample_name, '--indel-range', str(indel_range), per_bam, gdb, indel_json] \
+              + (['-p'] if p else [])
   subprocess.check_call(arguments)
 
   alindel_plot = prefix + '.alindel.pdf'
