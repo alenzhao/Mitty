@@ -71,7 +71,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None, full_perfect_bam=F
   """
   n0 = progress_bar_update_interval
   analyze_read = creed.analyze_read
-  mis_read_cnt = 0
+  tot_read_cnt, mis_read_cnt = 0, 0
   for tot_read_cnt, read in enumerate(bam_in_fp):
     read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, read_is_unmapped \
       = analyze_read(read, window, extended)
