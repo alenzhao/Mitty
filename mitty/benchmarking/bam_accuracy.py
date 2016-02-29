@@ -20,7 +20,6 @@ def cli(
   inbam, gdb,
   cigar_errors, window,
   sample_name, indel_range, indel_plot_smoothening_window, p):
-  prog_bar = '-p' if p else ''
 
   prefix = os.path.splitext(os.path.basename(inbam))[0]
 
@@ -28,10 +27,11 @@ def cli(
   per_bam = prefix + '.per.bam'
 
   # Perfectbam
-  arguments = ['perfectbam', inbam, '-v', prog_bar, '--window', str(window)] \
+  arguments = ['perfectbam', inbam, '-v', '--window', str(window)] \
               + (['--cigar-errors'] if cigar_errors else []) \
-              + ['--bad-bam', bad_bam, '--per-bam', per_bam]
-  subprocess.call(arguments)
+              + ['--bad-bam', bad_bam, '--per-bam', per_bam] \
+              + ['-p'] if p else []
+  subprocess.check_call(arguments)
 
   circle_plot = prefix + '.cir.pdf'
   matrix_plot = prefix + '.mat.pdf'
@@ -44,7 +44,7 @@ def cli(
 
   # alindel
   arguments = ['alindel', prog_bar, '--sample-name', sample_name, '--indel-range', str(indel_range), per_bam, gdb, indel_json]
-  subprocess.call(arguments)
+  subprocess.check_call(arguments)
 
   alindel_plot = prefix + '.alindel.pdf'
 
