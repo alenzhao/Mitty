@@ -199,7 +199,7 @@ class ReadSimulator:
   def bed_file(self):
     """Spit out text for a BED file."""
     chrom_meta = self.ref.get_seq_metadata()
-    bed_data = [(chrom_meta[c - 1]['seq_id'].split()[0],
+    bed_data = [(chrom_meta[c - 1]['seq_id'],
                  int(self.chromosome_regions[c]['start_f'] * chrom_meta[c - 1]['seq_len']),
                  int(self.chromosome_regions[c]['stop_f'] * chrom_meta[c - 1]['seq_len']))
                 for c in self.chromosomes]

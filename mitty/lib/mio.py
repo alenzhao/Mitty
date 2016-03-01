@@ -34,28 +34,29 @@ def iter_fasta(fa_fname):
   tr = string.maketrans('actgURYSWKMBDHV',
                         'ACTGTNNNNNNNNNN')
   with io.BufferedReader(gzip.open(fa_fname, 'r')) if fa_fname.endswith('gz') else open(fa_fname, 'r') as fp:
-    seq_id, seq = '', []
+    seq_id, seq_descr, seq = '', '', []
     for ln in fp:
       if ln[0] == '>':  # Start of a sequence
         if len(seq):
-          yield seq_id, (''.join(seq)).translate(tr)
-        seq_id, seq = ln[1:-1], []
+          yield seq_id, seq_descr, (''.join(seq)).translate(tr)
+        seq_id, seq_descr = ln[1:-1].split(' ', 1)
+        seq = []
       else:
         seq.append(ln.strip())
     if len(seq):
-      yield seq_id, (''.join(seq)).translate(tr)
+      yield seq_id, seq_descr, (''.join(seq)).translate(tr)
 
 
 def whole_fasta(fa_fname, chrom_list=[], compute_md5=True):
-  def _proc_seq(_n, _sid, _seq):
+  def _proc_seq(_n, _id, _description, _seq):
     ch = _n + 1
-    data = {'id': _sid, 'seq_len': len(_seq)}
+    data = {'id': _id, 'description': _description, 'seq_len': len(_seq)}
     if compute_md5: data['md5'] = hashlib.md5(_seq).hexdigest()
     if chrom_list == [] or chrom_list is None or ch in chrom_list: data['seq'] = _seq
-    logger.debug('Loaded {} ({} bp)'.format(_sid, len(_seq)))
+    logger.debug('Loaded {} ({} bp)'.format(_id, len(_seq)))
     return data
 
-  return {n + 1: _proc_seq(n, sid, seq) for n, (sid, seq) in enumerate(iter_fasta(fa_fname))}
+  return {n + 1: _proc_seq(n, sid, sdesc, seq) for n, (sid, sdesc, seq) in enumerate(iter_fasta(fa_fname))}
 
 
 class Fasta:
@@ -105,7 +106,8 @@ class Fasta:
     def dict_from_line(line):
       cells = line.split('\t')
       return {
-        'seq_id': cells[0].strip(),
+        'seq_id': cells[0].split(' ', 1)[0],
+        'seq_description': cells[0].split(' ', 1)[1],
         'seq_len': int(cells[1].strip()),
         'seq_md5': cells[2].strip()
       }
@@ -119,8 +121,8 @@ class Fasta:
     fa_fname = glob.os.path.join(self.multi_dir, 'chr{:s}.fa'.format(str(item)))
     if not glob.os.path.exists(fa_fname):
       raise IOError('{:s} does not exist'.format(fa_fname))
-    seq, sid = load_single_line_unzipped_fasta(fa_fname)
-    ret_val = {'seq': seq, 'id': sid, 'md5': self.seq_index[item - 1]['seq_md5']}
+    seq, sid, sdesc = load_single_line_unzipped_fasta(fa_fname)
+    ret_val = {'seq': seq, 'id': sid, 'description': sdesc, 'md5': self.seq_index[item - 1]['seq_md5']}
     if self.persist:
       self.sequences[item] = ret_val
     return ret_val
@@ -170,9 +172,9 @@ def load_single_line_unzipped_fasta(fa_fname):
   """Expects a fasta file with only one sequence and only upper case letters - will read other files but the result
   is not sanitized in any way - newlines and repeat masks are left in"""
   with open(fa_fname, 'r') as fasta_fp:
-    seq_id = fasta_fp.readline()[1:-1]
+    seq_id, seq_description = fasta_fp.readline()[1:-1].split(' ', 1)
     seq = fasta_fp.read()
-  return seq, seq_id
+  return seq, seq_id, seq_description
 
 
 # For now we concentrate on saving individual VCF files. Next version will have multi-vcf
