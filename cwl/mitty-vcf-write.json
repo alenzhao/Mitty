@@ -1,0 +1,152 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "genomes", 
+    "genome-file", 
+    "write-vcf"
+  ], 
+  "sbg:cmdPreview": "genomes genome-file write-vcf  /path/to/db.ext  db.ext.v0.vcf.gz", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/mitty-vcf-write/1/raw/", 
+  "description": "Writes out VCF from genomeDB", 
+  "sbg:revision": 1, 
+  "sbg:latestRevision": 1, 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "1.32.1.dev0", 
+  "label": "mitty-vcf-write", 
+  "arguments": [
+    {
+      "position": 3, 
+      "valueFrom": {
+        "engine": "#cwl-js-engine", 
+        "class": "Expression", 
+        "script": "$job.inputs.db.path.split(/[\\\\/]/).pop() + '.' + $job.inputs.sample_name + '.vcf.gz'"
+      }, 
+      "separate": true
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "description": "HDF5 file representing genome population database", 
+      "inputBinding": {
+        "position": 2, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "File"
+      ], 
+      "id": "#db", 
+      "label": "GenomeDB"
+    }, 
+    {
+      "description": "Name of Sample to write into VCF", 
+      "inputBinding": {
+        "position": 1, 
+        "prefix": "--sample-name", 
+        "itemSeparator": null, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#sample_name", 
+      "label": "Sample Name"
+    }
+  ], 
+  "successCodes": [], 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1454688927, 
+  "outputs": [
+    {
+      "description": "VCF file for sample", 
+      "outputBinding": {
+        "secondaryFiles": [
+          ".tbi"
+        ], 
+        "glob": "*.vcf.gz", 
+        "sbg:metadata": {
+          "sample_id": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.sample_name"
+          }
+        }, 
+        "sbg:inheritMetadataFrom": "#db"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#vcf", 
+      "label": "VCF"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }
+  ], 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 8000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "db": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/db.ext"
+      }, 
+      "sample_name": "v0"
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 8000
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/mitty-vcf-write/1", 
+  "sbg:createdOn": 1454520337, 
+  "sbg:toolkit": "Mitty", 
+  "stdin": "", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454688927, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 1
+    }, 
+    {
+      "sbg:modifiedOn": 1454520337, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

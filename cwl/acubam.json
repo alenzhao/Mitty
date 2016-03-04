@@ -1,0 +1,267 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "acubam"
+  ], 
+  "sbg:cmdPreview": "acubam", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/acubam/3/raw/", 
+  "description": "", 
+  "sbg:revision": 3, 
+  "sbg:latestRevision": 3, 
+  "sbg:modifiedBy": "kghosesbg", 
+  "label": "acubam", 
+  "arguments": [], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "id": "#inbam", 
+      "inputBinding": {
+        "secondaryFiles": [
+          ".bai"
+        ], 
+        "sbg:cmdInclude": true, 
+        "position": 100, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "description": "BAM to analyze", 
+      "label": "Input BAM"
+    }, 
+    {
+      "id": "#gdb", 
+      "inputBinding": {
+        "position": 101, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "description": "Genome DB file", 
+      "label": "GDB"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "--window", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Tolerance window for classifying reads as misalignments", 
+      "sbg:toolDefaultValue": "100", 
+      "label": "Tolerance", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#tol_win"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "--indel-plot-smoothening-window", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Window size over which to smoothen the indel plot", 
+      "sbg:toolDefaultValue": "5", 
+      "label": "Indel Smoothing", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#indel_smoothing"
+    }, 
+    {
+      "sbg:stageInput": null, 
+      "inputBinding": {
+        "prefix": "--indel-range", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Range over which to parameterize indel accuracy", 
+      "sbg:toolDefaultValue": "100", 
+      "label": "Indel Range", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#indel_range"
+    }, 
+    {
+      "id": "#sample_name", 
+      "inputBinding": {
+        "prefix": "--sample-name", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "description": "Name of the sample in the genome DB the BAM represents", 
+      "label": "Sample Name"
+    }
+  ], 
+  "successCodes": [], 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1457091179, 
+  "outputs": [
+    {
+      "sbg:fileTypes": "bam", 
+      "description": "BAM with only the mis-aligned reads", 
+      "label": "BADBAM", 
+      "outputBinding": {
+        "secondaryFiles": [
+          ".bai"
+        ], 
+        "glob": "*.bad.bam"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#badbam"
+    }, 
+    {
+      "sbg:fileTypes": "bam", 
+      "description": "BAM with perfectly aligned reads", 
+      "label": "PERBAM", 
+      "outputBinding": {
+        "secondaryFiles": [
+          ".bai"
+        ], 
+        "glob": "*.per.bam"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#perbam"
+    }, 
+    {
+      "sbg:fileTypes": "pdf", 
+      "description": "Circle plot of misalignments", 
+      "label": "CIRCLEPLOT", 
+      "outputBinding": {
+        "glob": "*.cir.pdf"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#circle_plot"
+    }, 
+    {
+      "sbg:fileTypes": "pdf", 
+      "description": "Matrix plot of mis-alignments", 
+      "label": "MATRIXPLOT", 
+      "outputBinding": {
+        "glob": "*.mat.pdf"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#matrix_plot"
+    }, 
+    {
+      "outputBinding": {
+        "glob": "*.indel.json"
+      }, 
+      "label": "INDELJSON", 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "description": ".json file with alignment accuracy parametrized by indel length", 
+      "id": "#indel_json"
+    }, 
+    {
+      "outputBinding": {
+        "glob": "*.alindel.pdf"
+      }, 
+      "label": "ALINDELPLOT", 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "description": "Plot of alignment accuracy parametrized by indel length", 
+      "id": "#alindel_plot"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "requirements": [], 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 1000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "inbam": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/inbam.ext"
+      }, 
+      "tol_win": 25, 
+      "gdb": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/gdb.ext"
+      }, 
+      "indel_smoothing": 5, 
+      "indel_range": 100, 
+      "sample_name": "s0"
+    }
+  }, 
+  "hints": [
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 1000
+    }, 
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/acubam/3", 
+  "sbg:createdOn": 1454520364, 
+  "stdin": "", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454520364, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }, 
+    {
+      "sbg:modifiedOn": 1456331114, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 1
+    }, 
+    {
+      "sbg:modifiedOn": 1457065729, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 2
+    }, 
+    {
+      "sbg:modifiedOn": 1457091179, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 3
+    }
+  ], 
+  "sbg:validationErrors": []
+}

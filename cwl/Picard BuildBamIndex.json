@@ -1,0 +1,325 @@
+{
+  "stdout": "", 
+  "sbg:links": [
+    {
+      "id": "http://broadinstitute.github.io/picard/index.html", 
+      "label": "Homepage"
+    }, 
+    {
+      "id": "https://github.com/broadinstitute/picard/releases/tag/1.140", 
+      "label": "Source Code"
+    }, 
+    {
+      "id": "http://broadinstitute.github.io/picard/", 
+      "label": "Wiki"
+    }, 
+    {
+      "id": "https://github.com/broadinstitute/picard/zipball/master", 
+      "label": "Download"
+    }, 
+    {
+      "id": "http://broadinstitute.github.io/picard/", 
+      "label": "Publication"
+    }
+  ], 
+  "baseCommand": [
+    "java", 
+    {
+      "engine": "#cwl-js-engine", 
+      "class": "Expression", 
+      "script": "{   \n  if($job.inputs.memory_per_job){\n    return '-Xmx'.concat($job.inputs.memory_per_job, 'M')\n  }   \n  \treturn '-Xmx2048M'\n}"
+    }, 
+    "-jar", 
+    "/opt/picard-tools-1.140/picard.jar", 
+    "BuildBamIndex"
+  ], 
+  "sbg:copyOf": "sevenbridges/public-apps/picard-buildbamindex-1-140/2", 
+  "sbg:toolAuthor": "Broad Institute", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/picard-buildbamindex-1-140/0/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 0, 
+  "requirements": [
+    {
+      "engineCommand": "cwl-engine.js", 
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }, 
+    {
+      "fileDef": [
+        {
+          "fileContent": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.input_bam"
+          }, 
+          "filename": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.input_bam.path.split('/').slice(-1)[0]"
+          }
+        }
+      ], 
+      "class": "CreateFileRequirement"
+    }
+  ], 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "1.140", 
+  "label": "Picard BuildBamIndex", 
+  "arguments": [
+    {
+      "valueFrom": {
+        "engine": "#cwl-js-engine", 
+        "class": "Expression", 
+        "script": "{\n  filename = $job.inputs.input_bam.path\n  return filename.split('.').slice(0, -1).concat(\"bam.bai\").join(\".\").replace(/^.*[\\\\\\/]/, '')\n}\n  "
+      }, 
+      "prefix": "OUTPUT=", 
+      "separate": false
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "sbg:altPrefix": "I", 
+      "sbg:fileTypes": "BAM", 
+      "inputBinding": {
+        "position": 1, 
+        "valueFrom": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.input_bam.path.split('/').slice(-1)[0]"
+        }, 
+        "sbg:cmdInclude": true, 
+        "prefix": "INPUT=", 
+        "separate": false
+      }, 
+      "description": "A BAM file or URL to process. Must be sorted in coordinate order.  Required.", 
+      "sbg:category": "File inputs", 
+      "label": "Input BAM", 
+      "type": [
+        "File"
+      ], 
+      "id": "#input_bam"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "MAX_RECORDS_IN_RAM=", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "When writing SAM files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file handles needed to sort a SAM file, and increases the amount of RAM needed. Default value: 500000. This option can be set to 'null' to clear the default value.", 
+      "sbg:toolDefaultValue": "500000", 
+      "sbg:category": "", 
+      "label": "Max records in RAM", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#max_records_in_ram"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "COMPRESSION_LEVEL=", 
+        "sbg:cmdInclude": true, 
+        "separate": false
+      }, 
+      "description": "Compression level for all compressed files created (e.g. BAM and GELI). Default value: 5. This option can be set to 'null' to clear the default value.", 
+      "sbg:toolDefaultValue": "5", 
+      "sbg:category": "", 
+      "label": "Compression level", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#compression_level"
+    }, 
+    {
+      "inputBinding": {
+        "valueFrom": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "{\n  if ($job.inputs.validation_stringency)\n  {\n    return $job.inputs.validation_stringency\n  }\n  else\n  {\n    return \"SILENT\"\n  }\n}"
+        }, 
+        "sbg:cmdInclude": true, 
+        "prefix": "VALIDATION_STRINGENCY=", 
+        "separate": false
+      }, 
+      "description": "Validation stringency for all SAM files read by this program. Setting stringency to SILENT can improve performance when processing a BAM file in which variable-length data (read, qualities, tags) do not otherwise need to be decoded. Default value: STRICT. This option can be set to 'null' to clear the default value. Possible values: {STRICT, LENIENT, SILENT}.", 
+      "sbg:toolDefaultValue": "SILENT", 
+      "label": "Validation stringency", 
+      "type": [
+        "null", 
+        {
+          "symbols": [
+            "STRICT", 
+            "LENIENT", 
+            "SILENT"
+          ], 
+          "type": "enum", 
+          "name": "validation_stringency"
+        }
+      ], 
+      "id": "#validation_stringency"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "QUIET=", 
+        "sbg:cmdInclude": true, 
+        "separate": false
+      }, 
+      "description": "This parameter indicates whether to suppress job-summary info on System.err. Default value: False. This option can be set to 'null' to clear the default value. Possible values: {True, False}", 
+      "sbg:toolDefaultValue": "False", 
+      "sbg:category": "", 
+      "label": "Quiet", 
+      "type": [
+        "null", 
+        {
+          "symbols": [
+            "True", 
+            "False"
+          ], 
+          "type": "enum", 
+          "name": "quiet"
+        }
+      ], 
+      "id": "#quiet"
+    }, 
+    {
+      "inputBinding": {
+        "position": 7, 
+        "prefix": "VERBOSITY=", 
+        "sbg:cmdInclude": true, 
+        "separate": false
+      }, 
+      "description": "Control verbosity of logging. Default value: INFO. This option can be set to 'null' to clear the default value. Possible values: {ERROR, WARNING, INFO, DEBUG}.", 
+      "sbg:toolDefaultValue": "INFO", 
+      "sbg:category": "", 
+      "label": "Verbosity", 
+      "type": [
+        "null", 
+        {
+          "symbols": [
+            "ERROR", 
+            "WARNING", 
+            "INFO", 
+            "DEBUG"
+          ], 
+          "type": "enum", 
+          "name": "verbosity"
+        }
+      ], 
+      "id": "#verbosity"
+    }, 
+    {
+      "sbg:toolDefaultValue": "2048", 
+      "id": "#memory_per_job", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "description": "Amount of RAM memory to be used per job. Defaults to 2048 MB for single threaded jobs.", 
+      "label": "Memory per job"
+    }
+  ], 
+  "sbg:categories": [
+    "SAM/BAM-Processing"
+  ], 
+  "description": "Picard BuildBamIndex generates a BAM index (.bai) file.", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1457046362, 
+  "outputs": [
+    {
+      "sbg:fileTypes": "BAM, BAI", 
+      "description": "The BAM index file. Defaults to x.bai if INPUT is x.bam, otherwise INPUT.bai. If INPUT is a URL and OUTPUT is unspecified, defaults to a file in the current directory.", 
+      "label": "Indexed BAM", 
+      "outputBinding": {
+        "secondaryFiles": [
+          "^.bai", 
+          ".bai"
+        ], 
+        "glob": "*.bam", 
+        "sbg:metadata": {
+          "__inherit__": "input_file"
+        }, 
+        "sbg:inheritMetadataFrom": "#input_bam"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#indexed_bam"
+    }, 
+    {
+      "sbg:fileTypes": "BAI", 
+      "description": "Indexed BAM.", 
+      "label": "Indexed BAM (.BAI)", 
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#input_bam", 
+        "glob": "*.bai", 
+        "sbg:metadata": {}
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#index"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "sbg:latestRevision": 0, 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 2048, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "memory_per_job": 0, 
+      "input_bam": {
+        "path": "root/dir/example.bam"
+      }
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "eab0e70b6629", 
+      "dockerPull": "images.sbgenomics.com/mladenlsbg/picard:1.140", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": {
+        "engine": "#cwl-js-engine", 
+        "class": "Expression", 
+        "script": "{\n  if($job.inputs.memory_per_job){\n  \treturn $job.inputs.memory_per_job\n  }\n  \treturn 2048\n}"
+      }
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/picard-buildbamindex-1-140/0", 
+  "sbg:createdOn": 1457046362, 
+  "sbg:toolkit": "Picard", 
+  "stdin": "", 
+  "sbg:cmdPreview": "java -Xmx2048M -jar /opt/picard-tools-1.140/picard.jar BuildBamIndex OUTPUT=example.bam.bai INPUT=example.bam INPUT=example.bam root/dir/example.bam", 
+  "sbg:license": "MIT License, Apache 2.0 Licence", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1457046362, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

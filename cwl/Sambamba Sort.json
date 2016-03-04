@@ -1,0 +1,275 @@
+{
+  "stdout": "", 
+  "sbg:links": [
+    {
+      "id": "http://lomereiter.github.io/sambamba/docs/sambamba-sort.html", 
+      "label": "Homepage"
+    }, 
+    {
+      "id": "https://github.com/lomereiter/sambamba", 
+      "label": "Source code"
+    }, 
+    {
+      "id": "https://github.com/lomereiter/sambamba/wiki", 
+      "label": "Wiki"
+    }, 
+    {
+      "id": "https://github.com/lomereiter/sambamba/releases/tag/v0.5.9", 
+      "label": "Download"
+    }, 
+    {
+      "id": "http://lomereiter.github.io/sambamba/docs/sambamba-sort.html", 
+      "label": "Publication"
+    }
+  ], 
+  "baseCommand": [
+    "/opt/sambamba_0.5.9/sambamba_v0.5.9", 
+    "sort"
+  ], 
+  "sbg:copyOf": "sevenbridges/public-apps/sambamba-sort-0-5-9/3", 
+  "sbg:toolAuthor": "Artem Tarasov", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/sambamba-sort-0-5-9/0/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 0, 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }
+  ], 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "0.5.9", 
+  "label": "Sambamba Sort", 
+  "arguments": [
+    {
+      "position": 3, 
+      "valueFrom": {
+        "engine": "#cwl-js-engine", 
+        "class": "Expression", 
+        "script": "{\n  if ($job.inputs.input)\n  {\n   filename = $job.inputs.input.path\n\n    return filename.split('.').slice(0, -1).concat(\"sorted.bam\").join(\".\").replace(/^.*[\\\\\\/]/, '')\n  }\n}"
+      }, 
+      "prefix": "--out=", 
+      "separate": false
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "sbg:fileTypes": "BAM", 
+      "inputBinding": {
+        "position": 100, 
+        "sbg:cmdInclude": true, 
+        "itemSeparator": " ", 
+        "separate": true
+      }, 
+      "description": "BAM file.", 
+      "sbg:category": "File inputs", 
+      "label": "Input BAM", 
+      "type": [
+        "File"
+      ], 
+      "id": "#input"
+    }, 
+    {
+      "sbg:altPrefix": "-F", 
+      "inputBinding": {
+        "itemSeparator": " ", 
+        "valueFrom": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "{\n  if ($job.inputs.filter)\n  {\n  \treturn '\"'.concat($job.inputs.filter, '\"')\n  }\n}"
+        }, 
+        "sbg:cmdInclude": true, 
+        "prefix": "--filter", 
+        "separate": true
+      }, 
+      "description": "Set custom filter for alignments.", 
+      "sbg:category": "Basic Options", 
+      "label": "Filter", 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#filter"
+    }, 
+    {
+      "sbg:altPrefix": "l", 
+      "inputBinding": {
+        "prefix": "--compression-level", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Specify compression level (from 0 to 9, works only for BAM output).", 
+      "label": "compression_level", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#compression_level"
+    }, 
+    {
+      "sbg:altPrefix": "m", 
+      "inputBinding": {
+        "prefix": "--memory-limit=", 
+        "sbg:cmdInclude": true, 
+        "separate": false
+      }, 
+      "description": "Approximate total memory limit for all threads (by default 2GB).", 
+      "label": "Memory limit", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#memory_limit"
+    }, 
+    {
+      "sbg:altPrefix": "n", 
+      "inputBinding": {
+        "prefix": "--sort-by-name", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Sort by read name instead of coordinate (lexicographical order).", 
+      "label": "Sort by name", 
+      "type": [
+        "null", 
+        "boolean"
+      ], 
+      "id": "#sort_by_name"
+    }, 
+    {
+      "sbg:altPrefix": "N", 
+      "inputBinding": {
+        "prefix": "--natural-sort", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Sort by read name instead of coordinate (so-called 'natural' sort as in samtools).", 
+      "label": "Natural sort", 
+      "type": [
+        "null", 
+        "boolean"
+      ], 
+      "id": "#natural_sort"
+    }, 
+    {
+      "sbg:altPrefix": "u", 
+      "inputBinding": {
+        "prefix": "--uncompressed-chunks", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "Write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space.", 
+      "label": "Uncompressed chunks", 
+      "type": [
+        "null", 
+        "boolean"
+      ], 
+      "id": "#uncompressed_chunks"
+    }, 
+    {
+      "sbg:altPrefix": "-t", 
+      "inputBinding": {
+        "valueFrom": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "{\n  if ($job.inputs.nthreads)\n    return $job.inputs.nthreads\n  else\n    return 8\n}"
+        }, 
+        "sbg:cmdInclude": true, 
+        "prefix": "--nthreads=", 
+        "separate": false
+      }, 
+      "description": "Number of threads to use.", 
+      "sbg:toolDefaultValue": "8", 
+      "label": "Number of threads", 
+      "type": [
+        "null", 
+        "int"
+      ], 
+      "id": "#nthreads"
+    }
+  ], 
+  "sbg:categories": [
+    "SAM/BAM-Processing"
+  ], 
+  "description": "Sambamba Sort does an external sort on the input file. It reads the source BAM file in chunks that fit into its memory, sorts them, writes them to a temporary directory, and then merges them. After merging, the temporary files are automatically removed. The sort is stable, and efforts have been made to make it multithreaded.\n\nBAM files have either 'coordinate' or 'qname' sort order. The former sorts the file by (integer) reference ID. and sorts corresponding reads by its start coordinate. The latter sorts reads lexicographically by their names.\n\nSambamba Sort supports both sorting orders. The default sort order is 'coordinate,' because this is the one used for building index later. In order to switch to 'qname' sorting order, use the -n|--sort-by-name flag.", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1457046590, 
+  "outputs": [
+    {
+      "sbg:fileTypes": "BAM", 
+      "description": "Outout sorted BAM file.", 
+      "label": "Sorted BAM", 
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#input", 
+        "glob": "*.sorted.bam", 
+        "sbg:metadata": {}
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#sorted"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "sbg:latestRevision": 0, 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 1024, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "memory_limit": 0, 
+      "nthreads": 0, 
+      "natural_sort": "natural_sort", 
+      "filter": "", 
+      "compression_level": 0, 
+      "uncompressed_chunks": true, 
+      "input": {
+        "path": "/root/dir/example.bam"
+      }, 
+      "sort_by_name": true
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "59e577b13d5d", 
+      "dockerPull": "images.sbgenomics.com/mladenlsbg/sambamba:0.5.9", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 1024
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/sambamba-sort-0-5-9/0", 
+  "sbg:createdOn": 1457046590, 
+  "sbg:toolkit": "Sambamba", 
+  "stdin": "", 
+  "sbg:cmdPreview": "/opt/sambamba_0.5.9/sambamba_v0.5.9 sort --compression-level 0 --memory-limit=0 --sort-by-name  --natural-sort  --uncompressed-chunks  --nthreads=8 --out=example.sorted.bam  /root/dir/example.bam /root/dir/example.bam", 
+  "sbg:license": "GNU General Public License v2.0 only", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1457046590, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

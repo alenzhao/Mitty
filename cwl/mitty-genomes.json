@@ -1,0 +1,163 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "genomes", 
+    "generate"
+  ], 
+  "sbg:copyOf": "kghosesbg/mitty-rabix-test/mitty-genomes/4", 
+  "sbg:toolAuthor": "Kaushik Ghose/SBG", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/mitty-genomes/0/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 0, 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }
+  ], 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "1.39.0.dev0", 
+  "label": "mitty-genomes", 
+  "arguments": [
+    {
+      "valueFrom": "-v", 
+      "prefix": "", 
+      "separate": true
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "description": "json file that describes the simulation to do", 
+      "inputBinding": {
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "File"
+      ], 
+      "id": "#parameter", 
+      "label": "Parameter File"
+    }, 
+    {
+      "description": "FASTA file for reference", 
+      "inputBinding": {
+        "prefix": "--ref", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "File"
+      ], 
+      "id": "#ref", 
+      "label": "Ref"
+    }, 
+    {
+      "description": "Name of the output DB file", 
+      "inputBinding": {
+        "prefix": "--db", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#db", 
+      "label": "DB file name"
+    }
+  ], 
+  "sbg:categories": [
+    "simulators"
+  ], 
+  "description": "Mitty genomes simulator", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1454520456, 
+  "outputs": [
+    {
+      "description": "HDF5 file representing genome population database", 
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#parameter", 
+        "glob": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.db"
+        }, 
+        "sbg:metadata": {}
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#genomeDB", 
+      "label": "GenomeDB"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "sbg:latestRevision": 0, 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 8000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "parameter": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "variants.json"
+      }, 
+      "ref": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "hg38_ref.fa.gz"
+      }, 
+      "db": "genomes.h5"
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 8000
+    }, 
+    {
+      "class": "sbg:AWSInstanceType", 
+      "value": "i2.xlarge"
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/mitty-genomes/0", 
+  "sbg:createdOn": 1454520456, 
+  "sbg:toolkit": "Mitty", 
+  "stdin": "", 
+  "sbg:cmdPreview": "genomes generate  variants.json --ref hg38_ref.fa.gz  -v", 
+  "sbg:license": "GNU General Public License v2.0 only", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454520456, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

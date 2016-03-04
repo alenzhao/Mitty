@@ -1,0 +1,208 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "genomes", 
+    "generate"
+  ], 
+  "sbg:copyOf": "kghosesbg/benchmarking-prototyping/mitty-genomes-inject/6", 
+  "sbg:toolAuthor": "Kaushik Ghose/SBG", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/mitty-genomes-inject/0/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 0, 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }, 
+    {
+      "fileDef": [
+        {
+          "fileContent": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.parameter_string"
+          }, 
+          "filename": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.db_name.split('.').slice(0, -1).join('.') + '_param.json'"
+          }
+        }
+      ], 
+      "class": "CreateFileRequirement"
+    }
+  ], 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "1.39.0.dev0", 
+  "label": "mitty-genomes-inject", 
+  "arguments": [
+    {
+      "valueFrom": "-v", 
+      "prefix": "", 
+      "separate": true
+    }, 
+    {
+      "position": -1, 
+      "valueFrom": {
+        "engine": "#cwl-js-engine", 
+        "class": "Expression", 
+        "script": "$job.inputs.db_name.split('.').slice(0, -1).join('.') + '_param.json'"
+      }, 
+      "separate": true
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "description": "json string that describes the simulation to do", 
+      "type": [
+        "string"
+      ], 
+      "id": "#parameter_string", 
+      "label": "String representing the parameter file"
+    }, 
+    {
+      "description": "FASTA file for reference", 
+      "inputBinding": {
+        "prefix": "--ref", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "File"
+      ], 
+      "id": "#ref", 
+      "label": "Ref"
+    }, 
+    {
+      "description": "Name of the output DB file", 
+      "inputBinding": {
+        "prefix": "--db", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#db_name", 
+      "label": "DB file name"
+    }, 
+    {
+      "description": "Metadata for benchmarking", 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#bench_meta", 
+      "label": "Benchmark metadata"
+    }
+  ], 
+  "sbg:categories": [
+    "simulators"
+  ], 
+  "description": "Mitty genomes simulator.\n\nAllows us to supply a simulation file via an input.", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1454520306, 
+  "outputs": [
+    {
+      "description": "HDF5 file representing genome population database", 
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#parameter", 
+        "glob": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.db_name"
+        }, 
+        "sbg:metadata": {
+          "b-meta": {
+            "engine": "#cwl-js-engine", 
+            "class": "Expression", 
+            "script": "$job.inputs.bench_meta"
+          }
+        }
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#genomeDB", 
+      "label": "GenomeDB"
+    }, 
+    {
+      "description": "The param file that resulted from the injection input", 
+      "outputBinding": {
+        "glob": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.db_name.split('.').slice(0, -1).join('.') + '_param.json'"
+        }
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#param_file", 
+      "label": "Param File"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "sbg:latestRevision": 0, 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 8000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "bench_meta": "[{'genomedb': 'test'}]", 
+      "db_name": "genomes.h5", 
+      "parameter_string": "{}", 
+      "ref": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "hg38_ref.fa.gz"
+      }
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 8000
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/mitty-genomes-inject/0", 
+  "sbg:createdOn": 1454520306, 
+  "sbg:toolkit": "Mitty", 
+  "stdin": "", 
+  "sbg:cmdPreview": "genomes generate  genomes_param.json --ref hg38_ref.fa.gz  -v", 
+  "sbg:license": "GNU General Public License v2.0 only", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454520306, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

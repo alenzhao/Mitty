@@ -1,0 +1,178 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "/opt/bamtools/bin/bamtools", 
+    "index"
+  ], 
+  "sbg:cmdPreview": "/opt/bamtools/bin/bamtools index -in input/input_bam.bam", 
+  "sbg:toolAuthor": "Derek Barnett, Erik Garrison, Gabor Marth, and Michael Stromberg", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/bam-index/9/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 9, 
+  "sbg:latestRevision": 9, 
+  "sbg:modifiedBy": "kghosesbg", 
+  "sbg:toolkitVersion": "2.4.0", 
+  "label": "bam-index", 
+  "sbg:homepage": "https://github.com/pezmaster31/bamtools/wiki", 
+  "sbg:categories": [
+    "SAM/BAM-Processing", 
+    "Indexing"
+  ], 
+  "arguments": [], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "sbg:stageInput": "copy", 
+      "sbg:fileTypes": "BAM", 
+      "inputBinding": {
+        "position": 0, 
+        "prefix": "-in", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "description": "The input BAM file.", 
+      "sbg:category": "Input & Output", 
+      "label": "Input BAM file", 
+      "type": [
+        "File"
+      ], 
+      "id": "#bam"
+    }
+  ], 
+  "sbg:links": [
+    {
+      "id": "https://github.com/pezmaster31/bamtools", 
+      "label": "Homepage"
+    }, 
+    {
+      "id": "https://github.com/pezmaster31/bamtools/wiki", 
+      "label": "Wiki"
+    }
+  ], 
+  "description": "Creates an index file (.bai) for a BAM file.", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1457030756, 
+  "outputs": [
+    {
+      "sbg:fileTypes": "bam", 
+      "outputBinding": {
+        "secondaryFiles": [
+          ".bai"
+        ], 
+        "glob": "*.bam"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#bam_out", 
+      "label": "OUT BAM"
+    }, 
+    {
+      "sbg:fileTypes": "bai", 
+      "outputBinding": {
+        "glob": "*.bai"
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#bai", 
+      "label": "BAM Index"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "requirements": [], 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 1000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "bam": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "input/input_bam.bam"
+      }
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "f808163d4cd3", 
+      "dockerPull": "images.sbgenomics.com/markop/bamtools:2.4.0", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 1000
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/bam-index/9", 
+  "sbg:createdOn": 1456763296, 
+  "sbg:toolkit": "BamTools", 
+  "stdin": "", 
+  "sbg:license": "The MIT License", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1457030756, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 9
+    }, 
+    {
+      "sbg:modifiedOn": 1456763296, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }, 
+    {
+      "sbg:modifiedOn": 1456763358, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 1
+    }, 
+    {
+      "sbg:modifiedOn": 1456763535, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 2
+    }, 
+    {
+      "sbg:modifiedOn": 1456784972, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 3
+    }, 
+    {
+      "sbg:modifiedOn": 1457006620, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 4
+    }, 
+    {
+      "sbg:modifiedOn": 1457006665, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 5
+    }, 
+    {
+      "sbg:modifiedOn": 1457006672, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 6
+    }, 
+    {
+      "sbg:modifiedOn": 1457009457, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 8
+    }, 
+    {
+      "sbg:modifiedOn": 1457009071, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 7
+    }
+  ], 
+  "sbg:validationErrors": []
+}

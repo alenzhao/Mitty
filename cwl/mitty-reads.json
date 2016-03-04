@@ -1,0 +1,194 @@
+{
+  "stdout": "", 
+  "baseCommand": [
+    "reads", 
+    "generate"
+  ], 
+  "sbg:copyOf": "kghosesbg/mitty-rabix-test/mitty-reads/5", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/mitty-reads/0/raw/", 
+  "description": "Mitty Reads generator", 
+  "sbg:revision": 0, 
+  "sbg:latestRevision": 0, 
+  "sbg:modifiedBy": "kghosesbg", 
+  "label": "mitty-reads", 
+  "arguments": [
+    {
+      "valueFrom": "-v", 
+      "separate": true
+    }
+  ], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "sbg:fileTypes": "fasta", 
+      "inputBinding": {
+        "position": 1, 
+        "prefix": "--ref", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#ref", 
+      "label": "Ref"
+    }, 
+    {
+      "description": "HDF5 file representing genome population database", 
+      "inputBinding": {
+        "position": 2, 
+        "prefix": "--db", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#db", 
+      "label": "GenomeDB"
+    }, 
+    {
+      "inputBinding": {
+        "position": 0, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#parameter", 
+      "label": "Parameter File"
+    }, 
+    {
+      "description": "Output Prefix for read files", 
+      "inputBinding": {
+        "prefix": "--out-prefix", 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        "string"
+      ], 
+      "id": "#out_prefix", 
+      "label": "Output Prefix"
+    }
+  ], 
+  "successCodes": [], 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1454520452, 
+  "outputs": [
+    {
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#db", 
+        "glob": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.out_prefix + '.*'"
+        }, 
+        "sbg:metadata": {}
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#perfect_fastq", 
+      "label": "Perfect Reads"
+    }, 
+    {
+      "outputBinding": {
+        "sbg:inheritMetadataFrom": "#db", 
+        "glob": {
+          "engine": "#cwl-js-engine", 
+          "class": "Expression", 
+          "script": "$job.inputs.out_prefix + '_c.*'"
+        }
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#corrupt_fastq", 
+      "label": "Corrupt Reads"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }
+  ], 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 16000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "parameter": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/parameter.ext"
+      }, 
+      "ref": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/ref.ext"
+      }, 
+      "db": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/db.ext"
+      }, 
+      "out_prefix": "out_prefix"
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 16000
+    }, 
+    {
+      "class": "sbg:AWSInstanceType", 
+      "value": "m3.2xlarge"
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/mitty-reads/0", 
+  "sbg:createdOn": 1454520452, 
+  "stdin": "", 
+  "sbg:cmdPreview": "reads generate  -v", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454520452, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }
+  ], 
+  "sbg:validationErrors": []
+}

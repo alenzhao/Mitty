@@ -1,0 +1,145 @@
+{
+  "stdout": {
+    "engine": "#cwl-js-engine", 
+    "class": "Expression", 
+    "script": "$job.inputs.genomeDB.path.split('/').pop() + '.summary.txt'"
+  }, 
+  "baseCommand": [
+    "genomes", 
+    "genome-file", 
+    "summary"
+  ], 
+  "sbg:cmdPreview": "genomes genome-file summary  /path/to/genomeDB.ext > genomeDB.ext.summary.txt", 
+  "sbg:toolAuthor": "Kaushik Ghose/SBG", 
+  "id": "https://api.sbgenomics.com/v2/apps/kghosesbg/mitty-apps/mitty-inspect-genomes/1/raw/", 
+  "successCodes": [], 
+  "sbg:revision": 1, 
+  "requirements": [
+    {
+      "requirements": [
+        {
+          "dockerPull": "rabix/js-engine", 
+          "class": "DockerRequirement"
+        }
+      ], 
+      "class": "ExpressionEngineRequirement", 
+      "id": "#cwl-js-engine"
+    }
+  ], 
+  "sbg:modifiedBy": "luka_admin", 
+  "sbg:toolkitVersion": "1.39.0.dev0", 
+  "label": "mitty-inspect-genomes", 
+  "arguments": [], 
+  "sbg:createdBy": "kghosesbg", 
+  "inputs": [
+    {
+      "id": "#genomeDB", 
+      "inputBinding": {
+        "position": 0, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "File"
+      ], 
+      "description": "HDF5 file representing genome population database", 
+      "label": "GenomeDB"
+    }, 
+    {
+      "inputBinding": {
+        "prefix": "--sample-name", 
+        "itemSeparator": null, 
+        "sbg:cmdInclude": true, 
+        "separate": true
+      }, 
+      "type": [
+        "null", 
+        {
+          "items": "string", 
+          "type": "array", 
+          "name": "sample_name"
+        }
+      ], 
+      "id": "#sample_name"
+    }
+  ], 
+  "sbg:categories": [
+    "Simulators"
+  ], 
+  "description": "This inspects a genome database and writes the summary to the job log file.", 
+  "sbg:sbgMaintained": false, 
+  "sbg:modifiedOn": 1456980368, 
+  "outputs": [
+    {
+      "outputBinding": {
+        "glob": "*.txt", 
+        "sbg:metadata": {}
+      }, 
+      "type": [
+        "null", 
+        "File"
+      ], 
+      "id": "#summary_file", 
+      "label": "Summary"
+    }
+  ], 
+  "sbg:contributors": [
+    "kghosesbg", 
+    "luka_admin"
+  ], 
+  "sbg:project": "kghosesbg/mitty-apps", 
+  "sbg:latestRevision": 1, 
+  "temporaryFailCodes": [], 
+  "class": "CommandLineTool", 
+  "sbg:job": {
+    "allocatedResources": {
+      "mem": 8000, 
+      "cpu": 1
+    }, 
+    "inputs": {
+      "genomeDB": {
+        "secondaryFiles": [], 
+        "size": 0, 
+        "class": "File", 
+        "path": "/path/to/genomeDB.ext"
+      }, 
+      "sample_name": [
+        "s0", 
+        "s1"
+      ]
+    }
+  }, 
+  "hints": [
+    {
+      "dockerImageId": "", 
+      "dockerPull": "images.sbgenomics.com/kghosesbg/mitty:latest", 
+      "class": "DockerRequirement"
+    }, 
+    {
+      "class": "sbg:CPURequirement", 
+      "value": 1
+    }, 
+    {
+      "class": "sbg:MemRequirement", 
+      "value": 8000
+    }
+  ], 
+  "sbg:id": "kghosesbg/mitty-apps/mitty-inspect-genomes/1", 
+  "sbg:createdOn": 1454520352, 
+  "sbg:toolkit": "Mitty", 
+  "stdin": "", 
+  "sbg:license": "GNU General Public License v2.0 only", 
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1454520352, 
+      "sbg:modifiedBy": "kghosesbg", 
+      "sbg:revision": 0
+    }, 
+    {
+      "sbg:modifiedOn": 1456980368, 
+      "sbg:modifiedBy": "luka_admin", 
+      "sbg:revision": 1
+    }
+  ], 
+  "sbg:validationErrors": []
+}
