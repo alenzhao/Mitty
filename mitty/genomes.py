@@ -290,6 +290,67 @@ def indel_count(dbfile, chrom, sample_name, max_indel):
     print('{:5d} | {:d}'.format(l, c))
 
 
+@g_file.command('variant-distribution')
+@click.argument('dbfile', type=click.Path(exists=True))
+@click.argument('chrom', type=int)
+@click.option('--sample-name', help='Name of sample. Omit to get stats for master list')
+def inter_variant_interval_histogram(dbfile, chrom, sample_name):
+  """Distribution of gaps between variants for given chromosome"""
+  pop = vr.Population(fname=dbfile)
+  sample_variant_list = pop.get_variant_master_list(chrom=chrom).variants if sample_name is None else \
+    pop.get_sample_variant_list_for_chromosome(chrom=chrom, sample_name=sample_name, ignore_zygosity=True)
+    #N, be = np.histogram(np.diff(sample_variant_list['pos']), bins=-0.5 + np.arange(1000))
+
+  fname = 'variant-distribution-chr{}.pdf'.format(chrom)
+  import matplotlib
+  matplotlib.use('Agg')
+  import matplotlib.pyplot as plt
+  N, be, _ = plt.hist(np.diff(sample_variant_list['pos']), bins=-0.5 + np.arange(1000), histtype='step')
+  plt.xlabel('Distance between variants (bp)')
+  plt.ylabel('Frequency')
+  plt.xlim(-0.5, 1000.5)
+  plt.title('{}:{}, chrom: {}'.format(dbfile, sample_name or 'master', chrom))
+  plt.savefig(fname)
+  print('Saved plot to {}'.format(fname))
+
+  bin_center = (be[:-1] + be[1:]).astype(int)/2
+  print('Variant gap distribution: Chrom {:d}'.format(chrom))
+  print('  GAP | COUNT')
+  for c, n in zip(bin_center, N.astype(int))[:30]:
+    print('{:5d} | {:5d}'.format(c, n))
+
+
+@g_file.command('variant-density')
+@click.argument('dbfile', type=click.Path(exists=True))
+@click.argument('chrom', type=int)
+@click.option('--variants-in-window', default=10, type=int, help='How many variants tp group together')
+@click.option('--sample-name', help='Name of sample. Omit to get stats for master list')
+def variant_density_histogram(dbfile, chrom, variants_in_window, sample_name):
+  """Variant density plot in variants/base"""
+  pop = vr.Population(fname=dbfile)
+  sample_variant_list = pop.get_variant_master_list(chrom=chrom).variants if sample_name is None else \
+    pop.get_sample_variant_list_for_chromosome(chrom=chrom, sample_name=sample_name, ignore_zygosity=True)
+  pos = sample_variant_list['pos']
+  vd = np.diff(pos)
+  V = variants_in_window
+  dsty = [float(V)/vd[n:n+V].sum() for n in xrange(vd.size-V)]
+
+  fname = 'variant-density-chr{}.png'.format(chrom)
+
+  import matplotlib
+  matplotlib.use('Agg')
+  import matplotlib.pyplot as plt
+  plt.plot(pos[:-V-1], dsty)
+  plt.xlabel('Sequence coordinate (bp)')
+  plt.ylabel('Variants / bp')
+  plt.xlim(-0.5, pos[-1] + .5)
+  plt.title('{}:{}, chrom: {}'.format(dbfile, sample_name or 'master', chrom))
+  plt.savefig(fname)
+
+  print('Saved plot to {}'.format(fname))
+
+
+
 @cli.group()
 def show():
   """Various help pages"""

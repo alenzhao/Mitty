@@ -89,6 +89,9 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.42.0.dev0**
+  * Added sub-commands to `genomes` to plot variant distribution statistics
+
 **1.40.0.dev0**
   * New program `bam2tfq` generates a truth FASTQ file from a BAM, treating the alignments as correct and using the
     alignment information to fill out the qname field. Unmapped reads, reads whose mates are in different contigs and
