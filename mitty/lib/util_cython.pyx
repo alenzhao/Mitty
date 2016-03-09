@@ -26,14 +26,23 @@ def place_poisson_seq(rng, float p, unsigned long start_x, unsigned long end_x, 
 
   cdef:
     char *s = seq
-    unsigned long est_block_size = <unsigned long>(<float>end_x * p * 1.2)
-    unsigned long idx
+    unsigned long est_block_size = <unsigned long>(<float>(end_x - start_x) * p * 1.2)
+    unsigned long loc
 
-  these_locs = rng.geometric(p=p, size=est_block_size).cumsum()
-  return np.array([idx for idx in these_locs[np.searchsorted(these_locs, start_x):np.searchsorted(these_locs, end_x)] if s[idx] != 'N'], dtype='i4')
+  if p < 1.0:
+    these_locs = rng.geometric(p=p, size=est_block_size).cumsum() + start_x
+  else:
+    these_locs = np.arange(start_x, end_x, dtype='i4')
+
+  return np.array([loc for loc in these_locs if loc < end_x and s[loc] != 'N'], dtype='i4')
 
 
 def place_poisson_with_hotspots(rng, float p, unsigned long start_x, unsigned long end_x, bytes seq, hotspots=None):
+  cdef:
+    float p_hot, p_hot_residual
+    int N
+    np.ndarray locs
+
   locs = place_poisson_seq(rng, p, start_x, end_x, seq)
 
   if hotspots:  # This will be a list of tuples (pos, width, factor)
@@ -42,6 +51,7 @@ def place_poisson_with_hotspots(rng, float p, unsigned long start_x, unsigned lo
     for h in hotspots:
       p_hot = h[2] * p
       N = int(p_hot)
+      #print(N, h[0], h[0] + 1, end_x)
       hot_locs += [place_poisson_seq(rng, 1.0, h[0], h[0] + h[1], seq) for _ in range(N)]
       p_hot_residual = p_hot % 1
       hot_locs += [place_poisson_seq(rng, p_hot_residual, h[0], h[0] + h[1], seq)]
