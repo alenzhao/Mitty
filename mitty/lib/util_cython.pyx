@@ -33,6 +33,33 @@ def place_poisson_seq(rng, float p, unsigned long start_x, unsigned long end_x, 
   return np.array([idx for idx in these_locs[np.searchsorted(these_locs, start_x):np.searchsorted(these_locs, end_x)] if s[idx] != 'N'], dtype='i4')
 
 
+def place_poisson_with_hotspots(rng, float p, unsigned long start_x, unsigned long end_x, bytes seq, hotspots=None):
+  locs = place_poisson_seq(rng, p, start_x, end_x, seq)
+
+  if hotspots:  # This will be a list of tuples (pos, width, factor)
+    # Basically we will run the basic algorithm multiple times over the regions specified
+    hot_locs = []
+    for h in hotspots:
+      p_hot = h[2] * p
+      N = int(p_hot)
+      hot_locs += [place_poisson_seq(rng, 1.0, h[0], h[0] + h[1], seq) for _ in range(N)]
+      p_hot_residual = p_hot % 1
+      hot_locs += [place_poisson_seq(rng, p_hot_residual, h[0], h[0] + h[1], seq)]
+
+    locs = np.concatenate([locs] + hot_locs)
+    locs.sort(kind='mergesort')
+
+  return locs
+
+
+def dampen_p_in_hotspots(p, locs, hot_spots):
+  """Reduce probability values in hotspots such that population hotspots are not reflected in individuals."""
+  for h in hot_spots:
+    idx = np.where((h[0] <= locs) & (locs < h[0] + h[1]))
+    p[idx] /= h[2]
+  return p
+
+
 def discard_deletions_in_illegal_regions(
     bytes ref, np.ndarray[np.int32_t, ndim=1] start_loc, np.ndarray[np.int32_t, ndim=1] stop_loc):
   """Return lists of del_locs, del_ends, refs, alts for deletes that ensure
@@ -71,8 +98,6 @@ cdef int legal_del(char *s, int start, int stop, int s_len):
     n += 1
 
   return 1
-
-
 
 
 cdef unsigned char sub_base(unsigned char orig_base, unsigned char sub_mat[85][3], float ct_mat[85][3], float r):
