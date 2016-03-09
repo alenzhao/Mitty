@@ -44,7 +44,13 @@ __param__ = """Parameter file example::
           "bin_cnt": 30
         }
       }
-    "chromosomes": [1, 2]  # Chromosomes to apply the models to
+    "chromosomes": [1, 2],  # Chromosomes to apply the models to
+    "hotspot_model": {     # Variant hot spot model
+      "uniform": {
+        "n_hot": 5,
+        "max_height": 100
+      }
+    },
     "variant_models": [    # The list of variant models should come under this key
       {
         "snp": {           # name of the model.
@@ -93,6 +99,7 @@ class PopulationSimulator:
     self.sfs_model = load_site_frequency_model(params.get('site_model', None))
     self.sfs_p, self.sfs_f = self.sfs_model.get_spectrum() if self.sfs_model is not None else (None, None)
     self.variant_models = load_variant_models(self.ref, params['variant_models'])
+    self.hotspot_model = load_hotspot_model(params.get('hotspot_model', None))
     self.population_model = load_population_model(params.get('population_model', None), params)
 
     self.unique_variant_count, self.total_variant_count = 0, 0
@@ -104,11 +111,18 @@ class PopulationSimulator:
     return len(self.chromosomes) * self.population_model.get_sample_count_estimate()
 
   def generate_and_save_samples(self, chrom):
+    hotspots = None
+    if self.hotspot_model:
+      hotspots = self.hotspot_model.hot_spots(
+        ref=self.ref[chrom]['seq'],
+        chrom=chrom,
+        seed=self.seed_rng.randint(mutil.SEED_MAX)) # [(100000, 1000, 100), (300000, 2000, 50), (600000, 5000, 20)]
     ml = vr.VariantList()
     for m in self.variant_models:
       ml.add(*m.get_variants(ref=self.ref[chrom]['seq'], chrom=chrom,
                              p=self.sfs_p, f=self.sfs_f,
-                             seed=self.seed_rng.randint(mutil.SEED_MAX)))
+                             seed=self.seed_rng.randint(mutil.SEED_MAX),
+                             hotspots=hotspots))
     ml.sort()
     if self.sfs_model is not None: ml.balance_probabilities(*self.sfs_model.get_spectrum())
     self.pop.set_master_list(chrom=chrom, master_list=ml)
@@ -132,6 +146,18 @@ def load_variant_models(ref, model_param_json):
           for model_json in model_param_json
           for k, v in model_json.iteritems()]  # There really is only one key (the model name) and the value is the
                                                # parameter list
+
+
+def load_hotspot_model(hotspot_model_json):
+  """Given a json snippet corresponding to the hot spot model load it. If None, return None
+
+  :param hotspot_model_json: json snippet corresponding to the hot spot model
+  """
+  mdl = None
+  if hotspot_model_json is not None:
+    k, v = hotspot_model_json.items()[0]
+    mdl = mitty.lib.load_hotspot_plugin(k).Model(**v)
+  return mdl
 
 
 def load_population_model(pop_model_json, params={}):

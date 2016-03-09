@@ -51,16 +51,18 @@ class Model:
     base_loc_rng, del_len_rng = mutil.initialize_rngs(seed, 2)
 
     p_eff = scale_probability_and_validate(self.p, p, f)
-    del_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)
+    hotspots = kwargs.get('hotspots', None)
+    del_locs = mutil.place_poisson_with_hotspots(base_loc_rng, p_eff, 0, len(ref), ref, hotspots=hotspots)
     del_lens = del_len_rng.randint(low=self.del_len_min, high=self.del_len_max, size=del_locs.shape[0])
 
     del_locs, del_ends, refs, alts = mutil.discard_deletions_in_illegal_regions(ref, del_locs,
                                                                                 (del_locs + del_lens + 1).astype('i4'))
-    if len(del_locs):
-      del_lens = del_ends - del_locs - 1
-      p = 0.5 * np.ones(del_lens.size, dtype=float)
 
-    return del_locs, del_ends, refs, alts, p
+    p_var = 0.5 * np.ones(del_locs.size, dtype=float)
+    if hotspots is not None:
+      p_var = mutil.dampen_p_in_hotspots(p_var, del_locs, hot_spots=hotspots)
+
+    return del_locs, del_ends, refs, alts, p_var
 
 
 def test0():
@@ -78,6 +80,14 @@ def test1():
   pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10)
   for p, r in zip(pos, alt):
     assert r == ref_seq[p]
+
+
+def test2():
+  """Edge case - no variants generated + hotspots"""
+  ref_seq = 'ACTGACTGACTGACTGACTGACTGACTGACTGACTG'
+  m = Model(p=0.00001)
+  pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10, hotspots=[(10, 10, 10)])
+  assert len(pos) == 0  # This should just run and not crash
 
 
 if __name__ == "__main__":

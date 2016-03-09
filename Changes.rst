@@ -89,6 +89,9 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.43.0.dev0**
+  * Added hotspots to variant generation
+
 **1.42.0.dev0**
   * Added sub-commands to `genomes` to plot variant distribution statistics
 

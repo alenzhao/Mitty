@@ -57,7 +57,9 @@ class Model:
     base_loc_rng, del_len_rng = mutil.initialize_rngs(seed, 2)
 
     p_eff = scale_probability_and_validate(self.p, p, f)
-    del_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)
+    #del_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)
+    hotspots = kwargs.get('hotspots', None)
+    del_locs = mutil.place_poisson_with_hotspots(base_loc_rng, p_eff, 0, len(ref), ref, hotspots=hotspots)
     del_lens = del_len_rng.geometric(p=self.p_end, size=del_locs.shape[0])
     np.clip(del_lens, a_min=self.del_len_min, a_max=self.del_len_max, out=del_lens)  # Make sure our deletions are clipped at the level we want
 
@@ -65,9 +67,13 @@ class Model:
                                                                                 (del_locs + del_lens + 1).astype('i4'))
     if len(del_locs):
       del_lens = del_ends - del_locs - 1
-      p = 1.0 - del_lens / float(del_lens.max())
+      p_var = 1.0 - del_lens / float(del_lens.max())
+      if hotspots is not None:
+        p_var = mutil.dampen_p_in_hotspots(p_var, del_locs, hot_spots=hotspots)
+    else:
+      p_var = []
 
-    return del_locs, del_ends, refs, alts, p
+    return del_locs, del_ends, refs, alts, p_var
 
 
 def test0():
@@ -89,6 +95,14 @@ def test1():
   m = Model(p=0.1)
   pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=15)
   assert 6 not in pos
+
+
+def test2():
+  """Edge case - no variants generated + hotspots"""
+  ref_seq = 'ACTGACTGACTGACTGACTGACTGACTGACTGACTG'
+  m = Model(p=0.00001)
+  pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10, hotspots=[(5, 4, 10)])
+  assert len(pos) == 0  # This should just run and not crash
 
 
 if __name__ == "__main__":

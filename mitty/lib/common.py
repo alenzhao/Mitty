@@ -11,6 +11,7 @@ from itertools import izip_longest  # Both for inspecting default values
 SEED_MAX = (1 << 32) - 1  # Used for seeding rng
 SFS_PLUGIN_ENTRY_POINT = 'mitty.plugins.sfs'
 VARIANT_PLUGIN_ENTRY_POINT = 'mitty.plugins.variants'
+VARIANT_HOTSPOT_PLUGIN_ENTRY_POINT = 'mitty.plugins.variants.hotspot'
 POP_PLUGIN_ENTRY_POINT = 'mitty.plugins.population'
 READS_PLUGIN_ENTRY_POINT = 'mitty.plugins.reads'
 BENCHMARK_TOOL_WRAPPER_ENTRY_POINT = 'mitty.benchmarking.tools'
@@ -66,6 +67,10 @@ def load_sfs_plugin(name):
 
 def load_variant_plugin(name):
   return _load_plugin(name, VARIANT_PLUGIN_ENTRY_POINT)
+
+
+def load_hotspot_plugin(name):
+  return _load_plugin(name, VARIANT_HOTSPOT_PLUGIN_ENTRY_POINT)
 
 
 def load_pop_model_plugin(name):

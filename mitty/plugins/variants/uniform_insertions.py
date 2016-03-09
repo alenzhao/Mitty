@@ -62,12 +62,18 @@ class Model:
 
     pt_mat = mutil.add_p_end_to_t_mat(self.t_mat, 0.0)  # The sequence will only end at max len
     p_eff = scale_probability_and_validate(self.p, p, f)
-    ins_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)  #np.array([x for x in mutil.place_poisson(base_loc_rng, p_eff, 0, len(ref)) if ref[x] != 'N'], dtype='i4')
+    #ins_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)  #np.array([x for x in mutil.place_poisson(base_loc_rng, p_eff, 0, len(ref)) if ref[x] != 'N'], dtype='i4')
+    hotspots = kwargs.get('hotspots', None)
+    ins_locs = mutil.place_poisson_with_hotspots(base_loc_rng, p_eff, 0, len(ref), ref, hotspots=hotspots)
     ins_lens = ins_len_rng.randint(low=self.min_len, high=self.max_len + 1, size=len(ins_locs))
     ins_list, len_list = mutil.markov_sequences(ref, ins_locs, ins_lens, pt_mat, ins_markov_rng)
-    lengths = np.array(len_list, dtype='i4')
+    #lengths = np.array(len_list, dtype='i4')
 
-    return ins_locs, ins_locs + 1, [ins[0] for ins in ins_list], ins_list, 0.5 * np.ones(len(ins_list), dtype=float)
+    p_var = 0.5 * np.ones(ins_locs.size, dtype=float)
+    if hotspots is not None:
+      p_var = mutil.dampen_p_in_hotspots(p_var, ins_locs, hot_spots=hotspots)
+
+    return ins_locs, ins_locs + 1, [ins[0] for ins in ins_list], ins_list, p_var
 
 
 def test0():
@@ -85,6 +91,14 @@ def test():
   pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10)
   for p, r in zip(pos, alt):
     assert r[0] == ref_seq[p]
+
+
+def test1():
+  """Edge case - no variants generated + hotspots"""
+  ref_seq = 'ACTGACTGACTGACTGACTGACTGACTGACTGACTG'
+  m = Model(p=0.00001)
+  pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10, hotspots=[(10, 10, 10)])
+  assert len(pos) == 0  # This should just run and not crash
 
 
 if __name__ == "__main__":

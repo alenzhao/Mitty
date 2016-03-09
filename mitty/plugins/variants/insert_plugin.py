@@ -64,11 +64,18 @@ class Model:
 
     pt_mat = mutil.add_p_end_to_t_mat(self.t_mat, self.p_end)
     p_eff = scale_probability_and_validate(self.p, p, f)
-    ins_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)  #np.array([x for x in mutil.place_poisson(base_loc_rng, p_eff, 0, len(ref)) if ref[x] != 'N'], dtype='i4')
+    # ins_locs = mutil.place_poisson_seq(base_loc_rng, p_eff, 0, len(ref), ref)  #np.array([x for x in mutil.place_poisson(base_loc_rng, p_eff, 0, len(ref)) if ref[x] != 'N'], dtype='i4')
+    hotspots = kwargs.get('hotspots', None)
+    ins_locs = mutil.place_poisson_with_hotspots(base_loc_rng, p_eff, 0, len(ref), ref, hotspots=hotspots)
+
     ins_list, len_list = mutil.markov_sequences(ref, ins_locs, self.max_len, pt_mat, ins_markov_rng)
     lengths = np.array(len_list, dtype='i4')
 
-    return ins_locs, ins_locs + 1, [ins[0] for ins in ins_list], ins_list, (1.0 - lengths / float(lengths.max())) if lengths.shape[0] else []
+    p_var = (1.0 - lengths / float(lengths.max())) if lengths.shape[0] else np.array([])
+    if hotspots is not None:
+      p_var = mutil.dampen_p_in_hotspots(p_var, ins_locs, hot_spots=hotspots)
+
+    return ins_locs, ins_locs + 1, [ins[0] for ins in ins_list], ins_list, p_var
 
 
 def test0():
@@ -99,6 +106,14 @@ def test2():
   m = Model(p=0.1)
   pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10)
   assert 20 not in pos
+
+
+def test3():
+  """Edge case - no variants generated + hotspots"""
+  ref_seq = 'ACTGACTGACTGACTGACTGACTGACTGACTGACTG'
+  m = Model(p=0.00001)
+  pos, stop, ref, alt, p = m.get_variants(ref_seq, seed=10, hotspots=[(5, 5, 10)])
+  assert len(pos) == 0  # This should just run and not crash
 
 
 if __name__ == "__main__":
