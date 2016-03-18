@@ -38,7 +38,7 @@ Zc  i    0 - read comes from chrom copy 0, 1 - read comes from chrom copy 1
 ZE  i    Read stop (Read start is in POS)
 Ze  i    Mate stop (Mate start is available from other BAM info)
 Xf  i    0 - incorrectly mapped, 1 - correctly mapped, 2 - unmapped
-Xd  i
+Xd  i    [0, MAX_POS] absolute distance in bp to correct alignment
 YR  i    0 - chrom was wrong, 1 - chrom was correct
 YP  i    0 - pos was wrong, 1 - pos was correct
 YC  i    0 - CIGAR was wrong, 1 - CIGAR was correct
@@ -86,6 +86,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None, full_perfect_bam=F
     else:  # Need only qname, some tags and pos, chrom info
       new_read = pysam.AlignedSegment()
       new_read.qname = read.qname
+      new_read.mapping_quality = read.mapping_quality
 
     # File size note
     #For a file with 202999 reads (per_bam, condensed - perfectbam -v -v -p reads.bam):
