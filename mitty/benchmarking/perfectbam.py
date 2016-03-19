@@ -58,7 +58,10 @@ def print_tags(ctx, param, value):
   ctx.exit()
 
 
-def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None, full_perfect_bam=False, window=0, extended=False,
+def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
+                 full_bad_bam=False,
+                 full_perfect_bam=False,
+                 window=0, extended=False,
                  flag_cigar_errors_as_misalignments=False,
                  progress_bar_update_interval=100):
   """Main processing function that goes through the bam file, analyzing read alignment and writing out
@@ -81,10 +84,12 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None, full_perfect_bam=F
       = analyze_read(read, window, extended)
     if read_serial is None: continue  # Something wrong with this read.
     read_is_misaligned = not (chrom_c and pos_c and (cigar_c or (not flag_cigar_errors_as_misalignments)))
-    if read_is_misaligned or full_perfect_bam:  # Need all the read info, incl seq and quality
+    if (read_is_misaligned and full_bad_bam) or full_perfect_bam:  # Need all the read info, incl seq and quality
       new_read = read
     else:  # Need only qname, some tags and pos, chrom info
       new_read = pysam.AlignedSegment()
+      new_read.is_paired = read.is_paired
+      new_read.is_read1 = read.is_read1
       new_read.qname = read.qname
       new_read.mapping_quality = read.mapping_quality
 
@@ -109,7 +114,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None, full_perfect_bam=F
                        ('XP', read.pos, 'i'),
                        ('XC', read.cigarstring or '', 'Z')])
 
-    if read_is_misaligned:  # We need to check if the read was reverse complemented when it should have been and vv
+    if read_is_misaligned and full_bad_bam:  # We need to check if the read was reverse complemented when it should have been and vv
       if new_read.is_reverse != ro:  # The complement is not consistent
         qual = new_read.qual[::-1]
         new_read.seq = translate(new_read.seq, DNA_complement)[::-1]
@@ -156,13 +161,14 @@ def sort_and_index_bams(bad_bam_fname, per_bam_fname):
 @click.option('--per-bam', type=click.Path(), help='PERBAM name (if omitted, file will be written to same directory as input file)')
 @click.option('--tags', is_flag=True, callback=print_tags, expose_value=False, is_eager=True, help='Print documentation for extended BAM tags')
 @click.option('--cigar-errors', is_flag=True, help='CIGAR errors result in reads being classified as misaligned')
-@click.option('--perfect-bam', is_flag=True, help='Perfect BAM has full read information')
+@click.option('--full-per-bam', is_flag=True, help='Perfect BAM has full read information')
+@click.option('--full-bad-bam', is_flag=True, help='Bad BAM has full read information')
 @click.option('--window', help='Size of tolerance window', default=0, type=int)
 @click.option('-x', is_flag=True, help='Use extended CIGAR ("X"s and "="s) rather than traditional CIGAR (just "M"s)')
 @click.option('--no-index', is_flag=True, help="Mostly for the platform: Don't sort and index the output files")
 @click.option('-v', count=True, help='Verbosity level')
 @click.option('-p', is_flag=True, help='Show progress bar')
-def cli(inbam, bad_bam, per_bam, cigar_errors, perfect_bam, window, x, no_index, v, p):
+def cli(inbam, bad_bam, per_bam, cigar_errors, full_per_bam, full_bad_bam, window, x, no_index, v, p):
   """Analyse BAMs produced from Mitty generated FASTQs for alignment accuracy.
   Produces two BAM files with reads having correct POS, CIGAR values. The original
   alignment information is written in the extended tags (use --tags for documentation)
@@ -186,7 +192,7 @@ def cli(inbam, bad_bam, per_bam, cigar_errors, perfect_bam, window, x, no_index,
   bad_bam_fname = bad_bam or (os.path.splitext(inbam)[0] + '_bad.bam')
   per_bam_fname = per_bam or (os.path.splitext(inbam)[0] + '_per.bam')
 
-  #process_bams(inbam, bad_bam_fname, per_bam_fname, cigar_errors, perfect_bam, window, x, p)
+  #process_bams(inbam, bad_bam_fname, per_bam_fname, cigar_errors, full_per_bam, window, x, p)
 
   bam_in_fp = pysam.AlignmentFile(inbam, 'rb')
 
@@ -217,7 +223,9 @@ def cli(inbam, bad_bam, per_bam, cigar_errors, perfect_bam, window, x, no_index,
   with click.progressbar(length=total_read_count, label='Processing BAM',
                          file=None if p else io.BytesIO()) as bar:
     for cnt, mis in process_file(bam_in_fp=bam_in_fp, bad_bam_fp=bad_bam_fp, per_bam_fp=per_bam_fp,
-                                 full_perfect_bam=perfect_bam, window=window,
+                                 full_perfect_bam=full_per_bam,
+                                 full_bad_bam=full_bad_bam,
+                                 window=window,
                                  flag_cigar_errors_as_misalignments=cigar_errors, extended=x,
                                  progress_bar_update_interval=progress_bar_update_interval):
       bar.update(progress_bar_update_interval)
