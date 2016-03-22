@@ -17,6 +17,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+MAX_D_ERROR = 200  # Clip the read alignment error at this level
+
+
 def analyze_read(read, window=100, extended=False):
   """Given a read process the qname and read properties to determine the correct (CHROM, POS, CIGAR) and determine
   what kind of alignment errors were made on it

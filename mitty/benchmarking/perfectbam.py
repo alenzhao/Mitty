@@ -38,7 +38,7 @@ Zc  i    0 - read comes from chrom copy 0, 1 - read comes from chrom copy 1
 ZE  i    Read stop (Read start is in POS)
 Ze  i    Mate stop (Mate start is available from other BAM info)
 Xf  i    0 - incorrectly mapped, 1 - correctly mapped, 2 - unmapped
-Xd  i    [0, MAX_POS] absolute distance in bp to correct alignment
+Xd  i    [0, MAX_D_ERROR] absolute distance in bp to correct alignment
 YR  i    0 - chrom was wrong, 1 - chrom was correct
 YP  i    0 - pos was wrong, 1 - pos was correct
 YC  i    0 - CIGAR was wrong, 1 - CIGAR was correct
@@ -48,7 +48,7 @@ XC  Z    Aligned CIGAR
 """
 
 
-MAX_POS = 200  # Position value to use when chrom is wrong
+MAX_D_ERROR = creed.MAX_D_ERROR
 
 
 def print_tags(ctx, param, value):
@@ -106,7 +106,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
                        ('ZE', pos + rl, 'i'),
                        ('Ze', pos_m + rl_m, 'i'),
                        ('Xf', 2 if read_is_unmapped else (chrom_c and pos_c), 'i'),
-                       ('Xd', min(abs(read.pos - pos), MAX_POS) if chrom_c else MAX_POS),
+                       ('Xd', min(abs(read.pos - pos), MAX_D_ERROR) if chrom_c else MAX_D_ERROR),
                        ('YR', chrom_c, 'i'),
                        ('YP', pos_c, 'i'),
                        ('YC', cigar_c, 'i'),
