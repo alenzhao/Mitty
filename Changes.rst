@@ -89,6 +89,15 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.44.0.dev0**
+  * Perfectbam writes out d_error - the difference between correct and actual read placement in
+    an extended tag
+  * Added utility to plot MQ and d_error
+  * indel analysis now written to BAM tags, allowing us to combine several analyses without having
+    to recompute things each time. e.g. can plot MQ by indel type and correct/incorrect, for e.g
+    Cmd line program is `indelbam` and `indelplot`
+
+
 **1.43.0.dev0**
   * Added hotspots to variant generation
 

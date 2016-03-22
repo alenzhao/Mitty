@@ -1,8 +1,11 @@
 """Functions to categorize reads for further analysis."""
-import sqlite3 as sq
 from itertools import izip
-import array
 import re
+
+import numpy
+import pyximport
+pyximport.install(setup_args={"include_dirs": numpy.get_include()})
+from creed_cython import *
 
 import h5py
 import numpy as np
@@ -106,6 +109,7 @@ def check_read(read_pos, read_cigar, correct_pos, correct_cigar, window):
   return cat
 
 
+# Orginal indel-analysis code ----------------------------------------------------------------
 def count_reads_under_features(bam_fp, f_chrom_id, f_start, f_stop, f_chrom_cpy=None):
   """Count correct/total reads under given features
 
