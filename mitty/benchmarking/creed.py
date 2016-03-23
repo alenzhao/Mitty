@@ -64,6 +64,7 @@ def analyze_read(read, window=100, extended=False):
 
   if read.is_unmapped:
     unmapped = 1
+    chrom_c, pos_c = 0, 0  # These are wrong by definition
   else:
     if read.reference_id != chrom - 1:
       chrom_c, pos_c = 0, 0  # chrom wrong, so pos wrong too
