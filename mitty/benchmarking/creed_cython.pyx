@@ -6,6 +6,7 @@ import numpy as np
 cimport numpy as np
 
 cdef:
+  int MAX_D_ERROR = 200  # Clip the read alignment error at this level
   int NOVEL_VARIANT = 1
   int KNOWN_VARIANT = 2
 
@@ -29,6 +30,7 @@ cdef advance_window(int[:] window,
   # Since window is a list, it is changed in place
 
 
+# TODO: can make this faster
 cdef find_variants_over_read(int[:] s_window, int[:] g_window,
                              int start, int stop, int r_chrom_cpy,
                              str[:] ref, str[:] alt,
@@ -43,6 +45,39 @@ cdef find_variants_over_read(int[:] s_window, int[:] g_window,
           if (s_gt[i] == r_chrom_cpy or s_gt[i] == 2) and start < footprint_stop[s_index[i]] and stop >= footprint_start[s_index[i]]]
 
 
+cdef struct ReadCounts:
+  int indel_range
+  np.int32_t[:] v_len, novel_v_cnt, known_v_cnt
+  np.int32_t[:] ref_r_cnt, ref_MQ_sum
+  np.int32_t[:, :] novel_v_r_cnt, novel_v_MQ_sum, known_v_r_cnt, known_v_MQ_sum
+
+
+def init_read_counts(indel_range):
+  cdef ReadCounts rc
+
+  rc.indel_range = indel_range
+
+  rc.v_len = np.arange(-indel_range, indel_range + 1, dtype=np.int32)
+  rc.novel_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.int32)
+  rc.known_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.int32)
+
+  rc.ref_r_cnt = np.zeros(MAX_D_ERROR + 1, dtype=np.int32)
+  rc.ref_MQ_sum = np.zeros(MAX_D_ERROR + 1, dtype=np.int32)
+
+  # Dimensions are: indel_size, d_error
+  rc.novel_v_r_cnt = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+  rc.novel_v_MQ_sum = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+
+  rc.known_v_r_cnt = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+  rc.known_v_MQ_sum = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+
+  return rc
+
+
+def read_count_dereference(rc):
+  return {k: np.asarray(v) for k, v in rc.items() if k != 'indel_range'}
+
+
 # Pure python
 # 1014452 reads in 7.61s just to read/write
 # 1014452 reads in 12.16s to also advance windows
@@ -51,13 +86,14 @@ cdef find_variants_over_read(int[:] s_window, int[:] g_window,
 #
 # Cython + types
 # 1014452 reads in 9.80s to do everythng
-def read_assigner_iterator(in_bam, pop, chrom, sample_name, graph_name=None):
+def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name, graph_name=None):
   """Setup features and prepare to iterate over the bam region. We expect in_bam to be an interator
   over reads from one chrom
 
   :param in_bam: a BAM region for given chromosome.
   :param pop: Population object
   :param chrom: [0, 1, 2, ...],
+  :param read_counter: read counter struct that is updated in place
   :param sample_name: Name of sample
   :param graph_name: Name of graph. Leave None to indicate no graph
   :return:
@@ -112,4 +148,27 @@ def read_assigner_iterator(in_bam, pop, chrom, sample_name, graph_name=None):
       r.set_tag('Z0', [_v[0] for _v in sample_vars])
       r.set_tag('Z1', [_v[1] for _v in sample_vars])
 
+    update_read_counter(read_counter, r.get_tag('Xd'), r.mapq, sample_vars)
+
     yield r
+
+
+cdef update_read_counter(ReadCounts rc, int d_e, int mq, sample_vars):
+  cdef int idx, vs, vf
+  if sample_vars:  # read covers at least one variant
+    for v in sample_vars:
+      vs = v[0]
+      vf = v[1]
+      if -rc.indel_range <= vs <= rc.indel_range:
+        idx = vs + rc.indel_range
+        if vf == 1:
+          rc.novel_v_cnt[idx] += 1
+          rc.novel_v_r_cnt[idx, d_e] += 1
+          rc.novel_v_MQ_sum[idx, d_e] += mq
+        elif vf == 2:
+          rc.known_v_cnt[idx] += 1
+          rc.known_v_r_cnt[idx, d_e] += 1
+          rc.known_v_MQ_sum[idx, d_e] += mq
+  else:
+    rc.ref_r_cnt[d_e] += 1
+    rc.ref_MQ_sum[d_e] += mq
