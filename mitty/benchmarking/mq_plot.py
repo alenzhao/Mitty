@@ -11,9 +11,16 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import NullFormatter
 
-from mitty.benchmarking.perfectbam import MAX_POS
+from mitty.benchmarking.creed import MAX_D_ERROR
 
 logger = logging.getLogger(__name__)
+
+
+d_error_categories = [
+  ('= 0', 0),
+  ('<= 10', 10),
+  ('<= 100', 100)
+]
 
 
 @click.command()
@@ -26,8 +33,9 @@ logger = logging.getLogger(__name__)
 def cli(perbam, o, title, v, p):
   """Plot mapping quality as a function of read accuracy.
 
-  1. Plot a binned scatter plot of read error (bp from correct pos, x-axis), mapping quality (y-axis)
-  2. Plot a marginal with MQ histogram
+  \b
+    1. Plot a binned scatter plot of read error (bp from correct pos, x-axis), mapping quality (y-axis)
+    2. Plot marginals for MQ and d_error
   """
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -45,7 +53,7 @@ def bin_mq(perbam, p):
   """
   t0 = time.time()
   bam_in_fp = pysam.AlignmentFile(perbam, 'rb')
-  binned_mq = np.zeros((255, MAX_POS + 1), dtype=int)
+  binned_mq = np.zeros((256, MAX_D_ERROR + 1), dtype=int)
   total_read_count = bam_in_fp.mapped + bam_in_fp.unmapped  # Sadly, this is only approximate
   progress_bar_update_interval = int(0.01 * total_read_count)
   with click.progressbar(length=total_read_count, label='Reading BAM',
@@ -70,36 +78,44 @@ def plot_mq(binned_mq):
   bottom, height = 0.1, 0.65
   bottom_h = left_h = left + width + 0.02
 
-  rect_scatter = [left, bottom, width, height]
+  ax2d_pos = [left, bottom, width, height]
   rect_histx = [left, bottom_h, width, 0.2]
   rect_histy = [left_h, bottom, 0.2, height]
 
   # start with a rectangular Figure
   plt.figure(1, figsize=(8, 8))
 
-  ax2d = plt.axes(rect_scatter)
-  axHistx = plt.axes(rect_histx)
-  axHisty = plt.axes(rect_histy)
+  ax2d = plt.axes(ax2d_pos)
+  ax_margin_MQ = plt.axes(rect_histx)
+  ax_margin_d = plt.axes(rect_histy)
 
-  axHistx.xaxis.set_major_formatter(nullfmt)
-  axHisty.yaxis.set_major_formatter(nullfmt)
+  ax_margin_MQ.xaxis.set_major_formatter(nullfmt)
+  ax_margin_d.yaxis.set_major_formatter(nullfmt)
 
-  mq_values = np.arange(255)
-  mq_lim = (-10, 255)
+  mq_values = np.arange(256)
+  mq_lim = (-3, binned_mq.sum(axis=1)[:-1].nonzero()[0][-1] + 3)
 
-  d_values = np.arange(MAX_POS + 1)
-  d_lim = (-10, MAX_POS + 10)
+  d_values = np.arange(MAX_D_ERROR + 1)
+  d_lim = (-10, MAX_D_ERROR + 10)
 
   ax2d.pcolor(mq_values, d_values, binned_mq.T,
               norm=LogNorm(vmin=1, vmax=binned_mq.max()),
               cmap='gray_r')
   plt.setp(ax2d, xlim=mq_lim, ylim=d_lim, xlabel='MQ', ylabel='|d_error| (bp)')
 
-  axHistx.semilogy(mq_values, binned_mq.sum(axis=1))
-  plt.setp(axHistx, xlim=mq_lim)
+  # colors = [(v, v, v) for v in [0, 0.3, 0.6]]
+  # for d_error_cat, color in zip(d_error_categories, colors):
+  #   ax_margin_MQ.semilogy(mq_values, binned_mq[:, :d_error_cat[1] + 1].sum(axis=1), color=color, lw=2, alpha=0.71)
+  ax_margin_MQ.semilogy(mq_values, binned_mq[:, :1].sum(axis=1) / float(binned_mq[:, :1].sum()), color='g', lw=3, alpha=0.71, label='|d| = 0')
+  ax_margin_MQ.semilogy(mq_values, binned_mq[:, 1:].sum(axis=1) / float(binned_mq[:, 1:].sum()), color='r', lw=1, alpha=0.71, label='|d| > 0')
+  plt.setp(ax_margin_MQ, xlim=mq_lim, ylim=[0, 10])
+  ax_margin_MQ.legend(loc='upper center', fontsize=7)
 
-  axHisty.semilogx(binned_mq.sum(axis=0), d_values)
-  plt.setp(axHisty, ylim=d_lim)
+  # ax_margin_d.semilogx(binned_mq.sum(axis=0), d_values)
+  ax_margin_d.semilogx(binned_mq[30:, :].sum(axis=0) / float(binned_mq[30:, :].sum()), d_values, label='MQ >= 30', color='g', lw=3)
+  ax_margin_d.semilogx(binned_mq[:30, :].sum(axis=0) / float(binned_mq[:30, :].sum()), d_values, label='MQ < 30', color='r', lw=1)
+  plt.setp(ax_margin_d, ylim=d_lim)
+  ax_margin_d.legend(loc='upper right', fontsize=7)
 
   # fig = plt.figure()
   # ax = fig.add_subplot(211)
