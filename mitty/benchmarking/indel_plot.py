@@ -1,142 +1,230 @@
+"""Plot layout:
+
+Repeat for novel and known, separate figures
+Ref info is duplicated
+There are three traces on the indel plot (top row)
+one for d_err = 0, d_err < 10, d_err < 100
+
+----------------------------
+|         |   |   |        |
+|   DEL   | R | S |   INS  |
+|         |   |   |        |
+----------------------------
+|   read counts            |
+----------------------------
+|   var counts             |
+----------------------------
+
+"""
+
+
+import itertools
 from itertools import izip
 import time
 import json
 import io
+import cPickle
 
 import click
 import numpy as np
 import pysam
 
-import mitty.lib.variants as vr
-from mitty.benchmarking.creed import MAX_D_ERROR
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+import mitty.benchmarking.creed as creed
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-@click.group()
+d_error_categories = [
+  ('= 0', 0),
+  ('<= 10', 10),
+  ('<= 100', 100)
+]
+
+
+@click.command()
 @click.version_option()
-def cli():
-  """Plot alignment accuracy categorized by variant type."""
-  pass
-
-
-@cli.command()
-@click.argument('perbam', type=click.Path(exists=True))
-@click.argument('indeljson', type=click.Path())
-@click.option('--indel-range', help='Maximum base pair count of indels we process', type=int, default=50)
-@click.option('-p', is_flag=True, help='Show progress bar')
-@click.option('-v', count=True, help='Verbosity level')
-def plot(perbam, indeljson, indel_range, p, v):
-  """INDELBAM -> plot + json:
+@click.argument('indelpkl', type=click.Path(exists=True))
+@click.argument('outsuffix', type=click.Path())
+@click.option('--indel-range', default=100, help='Range of indels to plot')
+@click.option('--win', default=0, help='Size of median filter window to smooth plots')
+@click.option('--title', help='Title', default='Aligner accuracy')
+def cli(indelpkl, outsuffix, indel_range, win, title):
+  """pickled data -> plot:
 
   \b
-  Given a perfect BAM file with indel annotations added by indelbam, use the information in the
-  extended tags to work out alignment accuracy parametrized by the sample indel lengths. Generate
-  a plot and a json file."""
-  perbam_fp = pysam.AlignmentFile(perbam, 'rb')
-  total_read_count = perbam_fp.mapped + perbam_fp.unmapped  # Sadly, this is only approximate
-  progress_bar_update_interval = int(0.01 * total_read_count)
-
-  t0 = time.time()
-  with click.progressbar(
-    length=total_read_count, label='Counting reads', file=None if p else io.BytesIO()) as bar:
-    json.dump(
-      parse_bam(perbam_fp, indel_range, bar.update, progress_bar_update_interval),
-      open(indeljson, 'w'), cls=NumpyJsonEncoder)
-  t1 = time.time()
-  logger.debug('Processed {:d} reads in {:2.2f}s'.format(total_read_count, t1 - t0))
-
-
-@cli.command()
-@click.argument('indeljson', type=click.Path(exists=True))
-@click.option('--indel-range', help='Maximum base pair count of indels we process', type=int, default=50)
-def replot(indeljson):
-  """json -> plot:
-
-  \b
-  Given a json file with alignment accuracy parametrized by the sample indel lengths,
+  Given a pkl file with alignment accuracy parametrized by the sample indel lengths,
   generate a plot."""
-  print(json)
+  win += (win + 1)% 2  # Ensure win is odd
+  read_counts = cPickle.load(open(indelpkl, 'r'))
+
+  for sl in ['known', 'novel']:
+    plot_fig(creed.slice_read_counts(read_counts, sl), indel_range, win, title)
+    plt.savefig('{}-{}'.format(sl, outsuffix))
 
 
-def parse_bam(perbam_fp, indel_range, progress_callback=None, progress_bar_update_interval=None):
-  """Given a BAM, analyze the extended tags and score the read accuracy, parametrized by indel length."""
-  variants = np.zeros((2 * indel_range + 1,), dtype=[('variant_length', 'i2'),
-                                                     ('novel_variant_count', 'i4'),
-                                                     ('known_variant_count', 'i4')])
-  variants['variant_length'] = np.arange(-indel_range, indel_range + 1, dtype=int)
+def plot_fig(read_counts, indel_range, win, title):
+  fig, ax = setup_figure()
+  axes_spec = build_axes_specs(read_counts, indel_range, title)
+  colors = [(v, v, v) for v in [0, 0.3, 0.6, 0.8]]
+  for d_error_cat, color in zip(d_error_categories, colors):
+    plot_alignment_accuracy(read_counts, d_error_cat, color=color, ax=ax)
+  decorate_axes(ax, axes_spec)
 
-  # Dimensions are: indel_size, d_error, read_count
-  reference_read_counts = np.zeros((MAX_D_ERROR + 1), dtype=int)
-  novel_variant_read_counts = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=int)
-  known_variant_read_counts = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=int)
 
-  cnt0, cnt = 0, 0
-  for cnt, r in enumerate(perbam_fp):
-    d_e = r.get_tag('Xd')
-    #corr = r.get_tag('Xf')
-    if r.has_tag('Z0'):  # read covers at least one variant
-      for vs, vf in zip(r.get_tag('Z0'), r.get_tag('Z1')):
-        if -indel_range <= vs <= indel_range:
-          idx = vs + indel_range
-          if vf == 1:
-            variants['novel_variant_count'][idx] += 1
-            novel_variant_read_counts[idx, d_e] += 1
-          elif vf == 2:
-            variants['known_variant_count'][idx] += 1
-            known_variant_read_counts[idx, d_e] += 1
+def setup_figure():
+  fig = plt.figure(figsize=(2 * 3.385, 2 * 3))  # two column figure for bio-informatics
+  plt.subplots_adjust(left=0.15, bottom=0.1, right=0.98, top=0.93, wspace=0.05, hspace=0.01)
+  gs = plt.GridSpec(3, 3,
+                    width_ratios=[6, 0.9, 6],
+                    height_ratios=[3.5, 1, 1])
+  ax = {k: plt.subplot(g) for k, g in
+        zip([''.join(e) for e in itertools.product(['A', 'B', 'C'], ['-DEL', '-REF/SNP', '-INS'])], gs)}
+  return fig, ax
 
-    else:
-      reference_read_counts[d_e] += 1
 
-    if (cnt + 1) % progress_bar_update_interval:
-      progress_callback(cnt - cnt0)
-      cnt0 = cnt
+def build_axes_specs(read_counts, indel_range, title):
+  rc = read_counts
 
-  return {
-    'variants': variants,
-    'reference_read_counts': reference_read_counts,
-    'novel_variant_read_counts': novel_variant_read_counts,
-    'known_variant_read_counts': known_variant_read_counts
+  rd_cnt = np.concatenate([rc['v_r_cnt'].sum(axis=1), [rc['ref_r_cnt'].sum()]])
+  max_read_cnt, min_read_cnt = max(2, rd_cnt.max()), min(1, rd_cnt.min())
+  max_indel_cnt, min_indel_cnt = max(2, rc['v_cnt'].max()), min(1, rc['v_cnt'].min())
+  indel_range = indel_range or rc['v_len'].max()
+  axes_specs = {
+    'title': title,
+    'x-lim': [-indel_range, indel_range],
+    'x-ticks': [-indel_range, -1, 0, 1, indel_range],
+    'A': {'y-lim': [0, 105], 'y-ticks': [25, 50, 75, 95, 100]},
+    'B': {'y-lim': [min_read_cnt / 2, max_read_cnt * 2],
+          'y-ticks': [min_read_cnt, max_read_cnt],
+          'y-t-labels': [min_read_cnt, max_read_cnt]},
+    'C': {'y-lim': [min_indel_cnt / 2, max_indel_cnt * 2],
+          'y-ticks': [min_indel_cnt, max_indel_cnt],
+          'y-t-labels': [min_indel_cnt, max_indel_cnt]}
   }
+  return axes_specs
 
 
-class NumpyJsonEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, np.ndarray):
-      return obj.tolist()
-    return json.JSONEncoder.default(self, obj)
+def decorate_axes(ax, axes_spec):
+  """Decorate axes as needed"""
+  # Set axes x-lims. We operate by columns here
+  fxl = axes_spec['x-lim']
+  x_lim = {'DEL': [fxl[0], -1], 'REF/SNP': [-1, 1], 'INS': [1, fxl[1]]}
+  fxt = axes_spec['x-ticks']
+  x_ticks = {'DEL': [t for t in fxt if t < 0], 'REF/SNP': [-0.5, 0.5], 'INS': [t for t in fxt if t > 0]}
+  x_tick_labels = {'DEL': [abs(x) for x in x_ticks['DEL']], 'REF/SNP': ['Ref', 'SNP'], 'INS': x_ticks['INS']}
+
+  for k1 in ['DEL', 'REF/SNP', 'INS']:
+    for k2 in ['A', 'Ad', 'B', 'C']:
+      if k2 not in axes_spec: continue
+      y_lim, y_ticks = axes_spec[k2]['y-lim'], axes_spec[k2]['y-ticks']
+      y_tick_labels = axes_spec[k2].get('y-t-labels', y_ticks)
+      ak = k2 + '-' + k1
+      if k2 not in ['A', 'Ad']:
+        ax[ak].set_yscale('symlog', nonposy='clip', subsy=[])
+      plt.setp(ax[ak],
+               xlim=x_lim[k1], xticks=x_ticks[k1], xticklabels=[] if k2 != 'C' else x_tick_labels[k1],
+               ylim=y_lim,
+               yticks=y_ticks,
+               yticklabels=[] if k1 != 'DEL' else y_tick_labels)
+      if ak == 'C-REF/SNP':
+        ax[ak].set_xticklabels(x_tick_labels[k1], rotation=90)
+
+      ax[ak].xaxis.grid('true')  # The vertical guide lines
+
+      if k2 in ['A', 'Ad']:
+        ax[ak].yaxis.grid('true')  # The horizontal guide lines
+
+      # Ticks and axes
+      for p in ['left', 'top', 'right']:
+        if k1 == 'DEL' and p == 'left': continue
+        ax[ak].spines[p].set_visible(False)
+
+      ax[ak].minorticks_off()
+      ax[ak].tick_params(bottom='off', left='off', top='off', right='off')
+      if k2 == 'C':
+        ax[ak].tick_params(direction='out', length=3, bottom='on', pad=3)
+      if k1 == 'DEL':
+        ax[ak].tick_params(direction='out', length=3, left='on', pad=2)
+
+  ax['A-REF/SNP'].title.set(text=axes_spec['title'])
+  ax['A-DEL'].legend(title='|d|', loc='lower left', fontsize=8)
+  if 'Ad-DEL' in ax: ax['Ad-DEL'].legend(loc='lower left', fontsize=8)
+
+  # X-labels
+  ax['C-DEL'].set_xlabel('Deletions (bp)')
+  ax['C-INS'].set_xlabel('Insertions (bp)')
+
+  # Y-labels
+  ax['A-DEL'].set_ylabel('% reads\ncorrectly aligned')
+  if 'Ad-DEL' in ax: ax['Ad-DEL'].set_ylabel('Difference')
+  ax['B-DEL'].set_ylabel('Read\ncount')
+  ax['C-DEL'].set_ylabel('Variation\ncount')
 
 
+def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=4, ax={}):
+  """axs is a dict of axes A-DEL, A-REF/SNP and A-INS"""
+  #pc_raw = cat_read_counts['correct'] / cat_read_counts['total'].astype(float) * 100
+  #pc = ss.medfilt(np.ma.masked_invalid(pc_raw), kernel_size=kernel_size) if kernel_size > 2 else pc_raw
+
+  rc = read_counts
+  plot_row = 'A'
+
+  r_pc = rc['ref_r_cnt'][:d_error_cat[1] + 1].sum() / float(rc['ref_r_cnt'].sum()) * 100
+  v_pc = rc['v_r_cnt'][:, :d_error_cat[1] + 1].sum(axis=1) / rc['v_r_cnt'].sum(axis=1).astype(float) * 100
+
+  idx = np.where(rc['v_len'] < 0)
+  ax['A-DEL'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
+  idx = np.where(rc['v_len'] > 0)
+  ax['A-INS'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
+
+  #
+  # # SNP
+  # idx = np.nonzero(indel_size == 0)[0]
+  # x, y = 0.5, pc_raw[idx]
+  # ax[plot_row + '-REF/SNP'].plot(x, y, color + 'o', ms=2, mec=color, alpha=0.71)
+  # ax[plot_row + '-REF/SNP'].plot(x, y, color + '_', lw=1.5, label=label, alpha=0.71)
+  #
+  # # ref reads
+  # #ref_pc = pure_reference_read_counts[0] / float(pure_reference_read_counts[1]) * 100
+  # ax[plot_row + '-REF/SNP'].plot(-0.5, ref_pc, color + 'o', ms=2, mec=color, alpha=0.71)
+  # ax[plot_row + '-REF/SNP'].plot(-0.5, ref_pc, color + '_', lw=1.5, label=label, alpha=0.71)
 
 
+def plot_read_count(indel_size, indel_reads, ref_reads, color='k', ax={}):
+  idx = {
+    'B-DEL': np.nonzero(indel_size < 0)[0],
+    'B-INS': np.nonzero(indel_size > 0)[0],
+  }
+  for ak in ['B-DEL', 'B-INS']:
+    ax[ak].plot(indel_size[idx[ak]], indel_reads[idx[ak]], color, lw=1)
+
+  # SNP
+  idx = np.nonzero(indel_size == 0)[0]
+  ax['B-REF/SNP'].plot(0.5, indel_reads[idx], color + 'o', ms=2, mec=color)
+  ax['B-REF/SNP'].plot(0.5, indel_reads[idx], color + '_', lw=3)
+
+  # ref reads
+  ax['B-REF/SNP'].plot(-0.5, ref_reads, color + 'o', ms=2, mec=color)
+  ax['B-REF/SNP'].plot(-0.5, ref_reads, color + '_', lw=3)
 
 
-# @cli.command()
-# @click.option('--perbam', type=click.Path(exists=True), help='PerBAM file annotated by indelbam')
-# @click.option('--indel-json', type=click.Path(), help='indel-json file')
-#
-# @click.argument('perbam', type=click.Path(exists=True))
-# @click.argument('vdb', type=click.Path(exists=True))  # , help='File name of genome database')
-# @click.argument('out-json', type=click.Path())
-# @click.option('--sample-name', help='Name of sample to compare against. Leave out to test against population')
-# @click.option('--indel-range', help='Maximum base pair count of indels we process', type=int, default=50)
-# @click.option('-p', is_flag=True, help='Show progress bar')
-# def cli(perbam, out_json, vdb, sample_name, indel_range, p):
-#
-#   bam_fp = pysam.AlignmentFile(perbam, 'rb')
-#   pop = vr.Population(vdb)
-#   cat_read_counts = None
-#   with click.progressbar(length=2 * len(pop.get_chromosome_list()), label='Analyzing indels', file=None if p else io.BytesIO()) as bar:
-#     for ch in pop.get_chromosome_list():
-#       # cat_read_counts = categorize_data_from_one_chromosome(
-#       #   bam_fp, pop, ch, sample_name=sample_name, cat_read_counts=cat_read_counts, max_indel=indel_range)
-#       for cat_read_counts in categorize_data_from_one_chromosome(
-#           bam_fp, pop, ch, sample_name=sample_name, cat_read_counts=cat_read_counts, max_indel=indel_range):
-#         bar.update(1)
-#
-#   json.dump(cat_read_counts, open(out_json, 'w'), cls=NumpyJsonEncoder)
+def plot_var_count(indel_size, indel_counts, color='k', ax={}):
+  idx = {
+    'C-DEL': np.nonzero(indel_size < 0)[0],
+    'C-INS': np.nonzero(indel_size > 0)[0],
+  }
+  for ak in ['C-DEL', 'C-INS']:
+    ax[ak].plot(indel_size[idx[ak]], indel_counts[idx[ak]], color, lw=1)
+
+  # SNP
+  idx = np.nonzero(indel_size == 0)[0]
+  ax['C-REF/SNP'].plot(0.5, indel_counts[idx], color + 'o', ms=2, mec=color)
+  ax['C-REF/SNP'].plot(0.5, indel_counts[idx], color + '_', lw=3)
 
 
 if __name__ == '__main__':
