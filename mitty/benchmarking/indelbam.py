@@ -75,7 +75,7 @@ def cli(perbam, gdb, outbam, sample_name, indelpkl, summaryjson, indel_range, gr
         progress_callback=bar.update,
         progress_bar_update_interval=progress_bar_update_interval)
 
-    alignment_data = creed.read_count_dereference(read_counter)
+    alignment_data = creed.read_counts_dereference(read_counter)
 
     cPickle.dump(alignment_data, open(indelpkl, 'wb'), protocol=cPickle.HIGHEST_PROTOCOL)
     json.dump(summarize(alignment_data), open(summaryjson, 'w'), indent=2)

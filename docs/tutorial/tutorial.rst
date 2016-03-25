@@ -176,7 +176,7 @@ Benchmarking alignment accuracy
 -------------------------------
 First, use BWA-MEM to create an alignment :
 
-.. program-output:: bwa index reddus_pentalgus.fa.gz
+.. command-output:: bwa index reddus_pentalgus.fa.gz
     :cwd: .
 
 .. program-output:: pybwa reddus_pentalgus.fa.gz reads_c.fq bwa.bam -p -v
@@ -240,28 +240,37 @@ Circle plots are fun to look at, but not as informative as the matrix plots
 Indel parametrized performance
 ++++++++++++++++++++++++++++++
 
-We pass the perfect BAM produced in the previous stage to the ``alindel`` tool to analyze the alignment performance
+We pass the perfect BAM produced in the previous stage to the ``indelbam`` tool to analyze the alignment performance
 parametrized by indel length.
 
-.. command-output:: alindel --help
-.. command-output:: alindel --sample-name g0_s0 --indel-range 20 bwa_per.bam reddus_genomes.h5 bwa_indel.json
+.. command-output:: indelbam --help
+.. command-output:: indelbam --tags
+.. command-output:: indelbam bwa_per.bam reddus_genomes.h5 g0_s0 bwa_indel.bam bwa_indel.pkl bwa_indel_summary.json --indel-range 50
     :cwd: .
 
-.. command-output:: alindel --sample-name g0_s0 --indel-range 20 bwa_poor_per.bam reddus_genomes.h5 bwa_poor_indel.json
+.. command-output:: indelbam bwa_poor_per.bam reddus_genomes.h5 g0_s0 bwa_poor_indel.bam bwa_poor_indel.pkl bwa_poor_indel_summary.json --indel-range 50
     :cwd: .
 
-.. command-output:: head -n 20 bwa_indel.json
+While the detailed accuracy analysis is stored in a python `.pkl` file, a summary of the alignment accuracy can be
+found in a human readable `.json` file:
+
+.. command-output:: cat bwa_indel_summary.json
     :cwd: .
 
-We all know how exciting it is to read `.json` files, so we have an additional tools to analyse the misaligned
-reads and display the information graphically (These require Matplotlib_ to be installed).
+We all know how exciting it is to read `.json` and `.pkl` files, so we have a ``indelplot`` to display the information
+graphically (Requires Matplotlib_ to be installed).
 
-.. command-output:: alindel_plot --help
+.. command-output:: indelplot --help
 
-.. command-output:: alindel_plot -f bwa_indel.json -l 'BWA' -f bwa_poor_indel.json -l 'BWA/poor' --indel-range 20 -o combined_indel.png
+.. command-output:: indelplot --title 'BWA' bwa_indel.pkl bwa_indel.png
     :cwd: .
 
-.. image:: combined_indel.png
+.. image:: novel-bwa_indel.png
+
+``indelplot`` produces two figures, prefixed by `known-` and `novel-`. The `known-` plot is useful when analyzing
+aligners (like graph genome based aligners) that make use of prior information about known variants. It shows how well
+the aligner does on known variants. The `novel-` plot shows how well the aligner does on variants it does not have
+a-priori information about. In the case of BWA all variants are `novel`
 
 
 .. _Matplotlib: http://matplotlib.org/index.html

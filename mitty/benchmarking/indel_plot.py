@@ -19,15 +19,10 @@ one for d_err = 0, d_err < 10, d_err < 100
 
 
 import itertools
-from itertools import izip
-import time
-import json
-import io
 import cPickle
 
 import click
 import numpy as np
-import pysam
 
 import matplotlib
 matplotlib.use('Agg')
@@ -63,8 +58,10 @@ def cli(indelpkl, outsuffix, indel_range, win, title):
   read_counts = cPickle.load(open(indelpkl, 'r'))
 
   for sl in ['known', 'novel']:
-    plot_fig(creed.slice_read_counts(read_counts, sl), indel_range, win, title)
-    plt.savefig('{}-{}'.format(sl, outsuffix))
+    plot_fig(creed.slice_read_counts(read_counts, sl), indel_range, win, '{}-{}'.format(title, sl))
+    out_name = '{}-{}'.format(sl, outsuffix)
+    plt.savefig(out_name)
+    print('Saved {} variant plot in {}'.format(sl, out_name))
 
 
 def plot_fig(read_counts, indel_range, win, title):
@@ -73,6 +70,8 @@ def plot_fig(read_counts, indel_range, win, title):
   colors = [(v, v, v) for v in [0, 0.3, 0.6, 0.8]]
   for d_error_cat, color in zip(d_error_categories, colors):
     plot_alignment_accuracy(read_counts, d_error_cat, color=color, ax=ax)
+  plot_read_count(read_counts, color='k', lw=2, ax=ax)
+  plot_var_count(read_counts, color='k', lw=2, ax=ax)
   decorate_axes(ax, axes_spec)
 
 
@@ -166,65 +165,72 @@ def decorate_axes(ax, axes_spec):
   ax['C-DEL'].set_ylabel('Variation\ncount')
 
 
-def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=4, ax={}):
+def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=2, ax={}):
   """axs is a dict of axes A-DEL, A-REF/SNP and A-INS"""
   #pc_raw = cat_read_counts['correct'] / cat_read_counts['total'].astype(float) * 100
   #pc = ss.medfilt(np.ma.masked_invalid(pc_raw), kernel_size=kernel_size) if kernel_size > 2 else pc_raw
 
   rc = read_counts
-  plot_row = 'A'
 
-  r_pc = rc['ref_r_cnt'][:d_error_cat[1] + 1].sum() / float(rc['ref_r_cnt'].sum()) * 100
   v_pc = rc['v_r_cnt'][:, :d_error_cat[1] + 1].sum(axis=1) / rc['v_r_cnt'].sum(axis=1).astype(float) * 100
 
+  # Indels
   idx = np.where(rc['v_len'] < 0)
   ax['A-DEL'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
   idx = np.where(rc['v_len'] > 0)
   ax['A-INS'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
 
-  #
-  # # SNP
-  # idx = np.nonzero(indel_size == 0)[0]
-  # x, y = 0.5, pc_raw[idx]
-  # ax[plot_row + '-REF/SNP'].plot(x, y, color + 'o', ms=2, mec=color, alpha=0.71)
-  # ax[plot_row + '-REF/SNP'].plot(x, y, color + '_', lw=1.5, label=label, alpha=0.71)
-  #
-  # # ref reads
-  # #ref_pc = pure_reference_read_counts[0] / float(pure_reference_read_counts[1]) * 100
-  # ax[plot_row + '-REF/SNP'].plot(-0.5, ref_pc, color + 'o', ms=2, mec=color, alpha=0.71)
-  # ax[plot_row + '-REF/SNP'].plot(-0.5, ref_pc, color + '_', lw=1.5, label=label, alpha=0.71)
-
-
-def plot_read_count(indel_size, indel_reads, ref_reads, color='k', ax={}):
-  idx = {
-    'B-DEL': np.nonzero(indel_size < 0)[0],
-    'B-INS': np.nonzero(indel_size > 0)[0],
-  }
-  for ak in ['B-DEL', 'B-INS']:
-    ax[ak].plot(indel_size[idx[ak]], indel_reads[idx[ak]], color, lw=1)
-
   # SNP
-  idx = np.nonzero(indel_size == 0)[0]
-  ax['B-REF/SNP'].plot(0.5, indel_reads[idx], color + 'o', ms=2, mec=color)
-  ax['B-REF/SNP'].plot(0.5, indel_reads[idx], color + '_', lw=3)
+  idx = np.where(rc['v_len'] == 0)[0]
+  x, y = 0.5, v_pc[idx]
+  ax['A-REF/SNP'].plot(x, y, color=color, marker='o', ms=2, mec=color, alpha=0.71)
+  ax['A-REF/SNP'].plot(x, y, color=color, marker='_', lw=1.5, alpha=0.71)
 
   # ref reads
-  ax['B-REF/SNP'].plot(-0.5, ref_reads, color + 'o', ms=2, mec=color)
-  ax['B-REF/SNP'].plot(-0.5, ref_reads, color + '_', lw=3)
+  ref_pc = rc['ref_r_cnt'][:d_error_cat[1] + 1].sum() / float(rc['ref_r_cnt'].sum()) * 100
+  ax['A-REF/SNP'].plot(-0.5, ref_pc, color=color, marker='o', ms=2, mec=color, alpha=0.71)
+  ax['A-REF/SNP'].plot(-0.5, ref_pc, color=color, marker='_', lw=1.5, alpha=0.71)
 
 
-def plot_var_count(indel_size, indel_counts, color='k', ax={}):
-  idx = {
-    'C-DEL': np.nonzero(indel_size < 0)[0],
-    'C-INS': np.nonzero(indel_size > 0)[0],
-  }
-  for ak in ['C-DEL', 'C-INS']:
-    ax[ak].plot(indel_size[idx[ak]], indel_counts[idx[ak]], color, lw=1)
+def plot_read_count(read_counts, color='k', lw=2, ax={}):
+  rc = read_counts
+
+  indel_rc = rc['v_r_cnt'].sum(axis=1)
+
+  # Indels
+  idx = np.where(rc['v_len'] < 0)
+  ax['B-DEL'].plot(rc['v_len'][idx], indel_rc[idx], color=color, lw=lw, alpha=0.71)
+  idx = np.where(rc['v_len'] > 0)
+  ax['B-INS'].plot(rc['v_len'][idx], indel_rc[idx], color=color, lw=lw, alpha=0.71)
 
   # SNP
-  idx = np.nonzero(indel_size == 0)[0]
-  ax['C-REF/SNP'].plot(0.5, indel_counts[idx], color + 'o', ms=2, mec=color)
-  ax['C-REF/SNP'].plot(0.5, indel_counts[idx], color + '_', lw=3)
+  idx = np.where(rc['v_len'] == 0)[0]
+  x, y = 0.5, indel_rc[idx]
+  ax['B-REF/SNP'].plot(x, y, color=color, marker='o', ms=2, mec=color, alpha=0.71)
+  ax['B-REF/SNP'].plot(x, y, color=color, marker='_', lw=1.5, alpha=0.71)
+
+  # ref reads
+  ref_rc = rc['ref_r_cnt'].sum()
+  ax['B-REF/SNP'].plot(-0.5, ref_rc, color=color, marker='o', ms=2, mec=color, alpha=0.71)
+  ax['B-REF/SNP'].plot(-0.5, ref_rc, color=color, marker='_', lw=1.5, alpha=0.71)
+
+
+def plot_var_count(read_counts, color='k', lw=2, ax={}):
+  rc = read_counts
+
+  indel_vc = rc['v_cnt']
+
+  # Indels
+  idx = np.where(rc['v_len'] < 0)
+  ax['C-DEL'].plot(rc['v_len'][idx], indel_vc[idx], color=color, lw=lw, alpha=0.71)
+  idx = np.where(rc['v_len'] > 0)
+  ax['C-INS'].plot(rc['v_len'][idx], indel_vc[idx], color=color, lw=lw, alpha=0.71)
+
+  # SNP
+  idx = np.where(rc['v_len'] == 0)[0]
+  x, y = 0.5, indel_vc[idx]
+  ax['C-REF/SNP'].plot(x, y, color=color, marker='o', ms=2, mec=color, alpha=0.71)
+  ax['C-REF/SNP'].plot(x, y, color=color, marker='_', lw=1.5, alpha=0.71)
 
 
 if __name__ == '__main__':

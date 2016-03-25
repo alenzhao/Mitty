@@ -5,8 +5,10 @@ cimport cython
 import numpy as np
 cimport numpy as np
 
+
+MAX_D_ERROR = 200  # Clip the read alignment error at this level
+
 cdef:
-  int MAX_D_ERROR = 200  # Clip the read alignment error at this level
   int NOVEL_VARIANT = 1
   int KNOWN_VARIANT = 2
 
@@ -74,8 +76,25 @@ def init_read_counts(indel_range):
   return rc
 
 
-def read_count_dereference(rc):
+def read_counts_dereference(rc):
   return {k: np.asarray(v) for k, v in rc.items() if k != 'indel_range'}
+
+
+def slice_read_counts(rc, sl):
+  """Return us either the known or novel data only. Rename some fields to be consistent
+
+  :param ad:
+  :param sl:
+  :return: something similar to ad
+  """
+  return {
+    'v_len': rc['v_len'],
+    'ref_r_cnt': rc['ref_r_cnt'],
+    'ref_MQ_sum': rc['ref_MQ_sum'],
+    'v_cnt': rc['{}_v_cnt'.format(sl)],
+    'v_r_cnt': rc['{}_v_r_cnt'.format(sl)],
+    'v_MQ_sum': rc['{}_v_MQ_sum'.format(sl)]
+  }
 
 
 # Pure python

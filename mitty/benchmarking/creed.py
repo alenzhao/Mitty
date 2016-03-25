@@ -75,7 +75,7 @@ def analyze_read(read, window=100, extended=False):
   return read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped
 
 
-# TODO: Revise algorithm to properly work with reads inside long insertions
+# TODO: Remove window parameter
 cigar_parser = re.compile(r'(\d+)(\D)')
 def check_read(read_pos, read_cigar, correct_pos, correct_cigar, window):
   """
