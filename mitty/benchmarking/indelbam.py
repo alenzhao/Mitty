@@ -41,7 +41,7 @@ def print_tags(ctx, param, value):
 @click.argument('perbam', type=click.Path(exists=True))
 @click.argument('gdb', type=click.Path(exists=True))
 @click.argument('sample-name')
-@click.argument('outbam', type=click.Path())
+@click.argument('indelbam', type=click.Path())
 @click.argument('indelpkl', type=click.Path())
 @click.argument('summaryjson', type=click.Path())
 @click.option('--indel-range', help='Maximum base pair count of indels we process', type=int, default=50)
@@ -49,14 +49,14 @@ def print_tags(ctx, param, value):
 @click.option('-p', is_flag=True, help='Show progress bar')
 @click.option('-v', count=True, help='Verbosity level')
 @click.option('--tags', is_flag=True, callback=print_tags, expose_value=False, is_eager=True, help='Print documentation for extended BAM tags')
-def cli(perbam, gdb, outbam, sample_name, indelpkl, summaryjson, indel_range, graph_name, p, v):
+def cli(perbam, gdb, indelbam, sample_name, indelpkl, summaryjson, indel_range, graph_name, p, v):
   """For each read in a BAM, use extended tags to indicate which indel categories it belongs to.
   Tags are added to original BAM in place"""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
   perbam_fp = pysam.AlignmentFile(perbam, 'rb')
-  outbam_fp = pysam.AlignmentFile(outbam, 'wb', header=create_bam_header(perbam_fp))
+  outbam_fp = pysam.AlignmentFile(indelbam, 'wb', header=create_bam_header(perbam_fp))
 
   total_read_count = perbam_fp.mapped + perbam_fp.unmapped  # Sadly, this is only approximate
   progress_bar_update_interval = int(0.01 * total_read_count)
@@ -84,7 +84,7 @@ def cli(perbam, gdb, outbam, sample_name, indelpkl, summaryjson, indel_range, gr
   logger.debug('Analyzed {:d} reads in {:2.2f}s'.format(total_read_count, t1 - t0))
 
   t0 = time.time()
-  pysam.index(outbam)
+  pysam.index(indelbam)
   t1 = time.time()
   logger.debug('Indexed BAM in {:2.2f}s'.format(t1 - t0))
 
