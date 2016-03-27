@@ -34,11 +34,12 @@ setup(
                           #'alindel = mitty.benchmarking.indel_alignment_accuracy:cli',
                           'indelplot = mitty.benchmarking.indel_plot:cli',
                           'mqplot = mitty.benchmarking.mq_plot:cli',
+                          'aligner-summary-report = mitty.benchmarking.aligner_analysis_summary:cli',
                           'vcf2pop = mitty.lib.vcf2pop:cli',
                           'bam2tfq = mitty.benchmarking.convert_bam_to_truth_fastq:cli',
                           #'alindel_plot = mitty.benchmarking.indel_alignment_accuracy_plot:cli',
                           'misplot = mitty.benchmarking.misalignment_plot:cli',
-                          'acubam = mitty.benchmarking.bam_accuracy:cli',
+                          #'acubam = mitty.benchmarking.bam_accuracy:cli',
                           'migratedb = mitty.util.db_migrate:cli',
                           'plot_gc_bias = mitty.util.plot_gc_bias:cli',
                           'splitta = mitty.util.splitta:cli',
@@ -51,7 +52,7 @@ setup(
       'numpy>=1.9.0',
       'docopt>=0.6.2',
       'click>=3.3',
-      'pysam>=0.8.1',
+      'pysam==0.8.4',  # 0.9.0 gives a StringIO error. 0.8.3 is confused by some set_tag operations
       'h5py>=2.5.0',
       'matplotlib>=1.3.0',
       'scipy'
