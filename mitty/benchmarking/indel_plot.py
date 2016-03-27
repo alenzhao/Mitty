@@ -27,6 +27,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import scipy.signal as ss
 
 import mitty.benchmarking.creed as creed
 
@@ -46,30 +47,30 @@ d_error_categories = [
 @click.argument('indelpkl', type=click.Path(exists=True))
 @click.argument('outsuffix', type=click.Path())
 @click.option('--indel-range', default=100, help='Range of indels to plot')
-@click.option('--win', default=0, help='Size of median filter window to smooth plots')
+@click.option('--median-filter-size', default=0, help='Size of median filter window to smooth plots')
 @click.option('--title', help='Title', default='Aligner accuracy')
-def cli(indelpkl, outsuffix, indel_range, win, title):
+def cli(indelpkl, outsuffix, indel_range, median_filter_size, title):
   """pickled data -> plot:
 
   \b
   Given a pkl file with alignment accuracy parametrized by the sample indel lengths,
   generate a plot."""
-  win += (win + 1)% 2  # Ensure win is odd
+  median_filter_size += (median_filter_size + 1) % 2  # Ensure median_filter_size is odd
   read_counts = cPickle.load(open(indelpkl, 'r'))
 
   for sl in ['known', 'novel']:
-    plot_fig(creed.slice_read_counts(read_counts, sl), indel_range, win, '{}-{}'.format(title, sl))
+    plot_fig(creed.slice_read_counts(read_counts, sl), indel_range, median_filter_size, '{}-{}'.format(title, sl))
     out_name = '{}-{}'.format(sl, outsuffix)
     plt.savefig(out_name)
     print('Saved {} variant plot in {}'.format(sl, out_name))
 
 
-def plot_fig(read_counts, indel_range, win, title):
+def plot_fig(read_counts, indel_range, median_filter_kernel_size, title):
   fig, ax = setup_figure()
   axes_spec = build_axes_specs(read_counts, indel_range, title)
   colors = [(v, v, v) for v in [0, 0.3, 0.6, 0.8]]
   for d_error_cat, color in zip(d_error_categories, colors):
-    plot_alignment_accuracy(read_counts, d_error_cat, color=color, ax=ax)
+    plot_alignment_accuracy(read_counts, d_error_cat, color=color, ax=ax, kernel_size=median_filter_kernel_size)
   plot_read_count(read_counts, color='k', lw=2, ax=ax)
   plot_var_count(read_counts, color='k', lw=2, ax=ax)
   decorate_axes(ax, axes_spec)
@@ -165,20 +166,20 @@ def decorate_axes(ax, axes_spec):
   ax['C-DEL'].set_ylabel('Variation\ncount')
 
 
-def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=2, ax={}):
+def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=0.5, ax={}, kernel_size=5):
   """axs is a dict of axes A-DEL, A-REF/SNP and A-INS"""
   #pc_raw = cat_read_counts['correct'] / cat_read_counts['total'].astype(float) * 100
-  #pc = ss.medfilt(np.ma.masked_invalid(pc_raw), kernel_size=kernel_size) if kernel_size > 2 else pc_raw
 
   rc = read_counts
 
   v_pc = rc['v_r_cnt'][:, :d_error_cat[1] + 1].sum(axis=1) / rc['v_r_cnt'].sum(axis=1).astype(float) * 100
+  sm_v_pc = ss.medfilt(np.ma.masked_invalid(v_pc), kernel_size=kernel_size) if kernel_size > 2 else v_pc
 
   # Indels
   idx = np.where(rc['v_len'] < 0)
-  ax['A-DEL'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
+  ax['A-DEL'].plot(rc['v_len'][idx], sm_v_pc[idx], marker='.', color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
   idx = np.where(rc['v_len'] > 0)
-  ax['A-INS'].plot(rc['v_len'][idx], v_pc[idx], color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
+  ax['A-INS'].plot(rc['v_len'][idx], sm_v_pc[idx], marker='.', color=color, lw=lw, label=d_error_cat[0], alpha=0.71)
 
   # SNP
   idx = np.where(rc['v_len'] == 0)[0]
