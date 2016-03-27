@@ -89,6 +89,10 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.44.1.dev0**
+  * PySAM version fixed at 0.8.4: 0.9.0 gives a StringIO error. 0.8.3 is confused by some set_tag operations
+  * Single aligner run summary generator complete
+
 **1.44.0.dev0**
   * Perfectbam writes out d_error - the difference between correct and actual read placement in
     an extended tag
@@ -96,7 +100,6 @@ Partial Changelog
   * indel analysis now written to BAM tags, allowing us to combine several analyses without having
     to recompute things each time. e.g. can plot MQ by indel type and correct/incorrect, for e.g
     Cmd line program is `indelbam` and `indelplot`
-
 
 **1.43.0.dev0**
   * Added hotspots to variant generation

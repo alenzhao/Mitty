@@ -160,3 +160,10 @@ Creating wheels
 
 
 Please see the documentation for a comprehensive, step-by-step tutorial.
+
+Uploading to SBG docker repository
+----------------------------------
+Use the following command to mount the Mitty directory (so we can run ``pip install .`` from the container::
+
+  docker run -ti -v /Users/kghose/Code/Mitty:/mountedcwd images.sbgenomics.com/kghosesbg/mitty:latest
+
