@@ -167,3 +167,8 @@ Use the following command to mount the Mitty directory (so we can run ``pip inst
 
   docker run -ti -v /Users/kghose/Code/Mitty:/mountedcwd images.sbgenomics.com/kghosesbg/mitty:latest
 
+For matplotlib font::
+
+  apt-get install ttf-bitstream-vera
+  rm ~/.cache/matplotlib/fontList.cache
+  cp /usr/share/fonts/truetype/ttf-bitstream-vera/* /usr/share/matplotlib/mpl-data/fonts/ttf/ # Didn't hurt

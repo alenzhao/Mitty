@@ -80,16 +80,18 @@ __html_template__ = \
 @click.argument('novelplot', type=click.Path(exists=True))
 @click.argument('knownplot', type=click.Path(exists=True))
 @click.argument('mqplot', type=click.Path(exists=True))
+@click.argument('circleplot', type=click.Path(exists=True))
+@click.argument('matrixplot', type=click.Path(exists=True))
 @click.argument('htmlout', type=click.Path())
-def cli(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, htmlout):
+def cli(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, htmlout):
   """Collect all the bits and pieces of an aligner analysis and compact them together into a
   single page, static HTML file with all the figures embedded as b64 encoded data"""
   open(htmlout, 'w').write(
-    create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot)
+    create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot)
   )
 
 
-def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot):
+def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot):
   """."""
   title = "{} - Aligner report".format(tool)
 
@@ -98,7 +100,7 @@ def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, 
   html += ['<h3>Accuracy summary</h3>']
   html += aligner_accuracy_summary_table(summaryjson)
   html += ['<h3>Plots</h3>']
-  html += plots_table(novelplot, knownplot, mqplot)
+  html += plots_table(novelplot, knownplot, mqplot, circleplot, matrixplot)
 
   return __html_template__.format(title, '\n'.join(html))
 
@@ -143,10 +145,11 @@ def aligner_accuracy_summary_table(summaryjson):
   return html
 
 
-def plots_table(novelplot, knownplot, mqplot):
+def plots_table(novelplot, knownplot, mqplot, circleplot, matrixplot):
   html = ["<table>"]
   html += ['<tr><th height=50px valign="bottom">{}</th></tr><tr><td>{}</td></tr>'.format(fn[0], embed_image(fn[1]))
-           for fn in [('Novel variants', novelplot), ('Known variants', knownplot), ('MQ', mqplot)]]
+           for fn in [('Novel variants', novelplot), ('Known variants', knownplot), ('MQ', mqplot),
+                      ('Misalignments plot (Circle)', circleplot), ('Misalignments plot (Matrix)', matrixplot)]]
   html += ["</table>"]
   return html
 
