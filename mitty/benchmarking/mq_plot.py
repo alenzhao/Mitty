@@ -111,9 +111,14 @@ def plot_mq(binned_mq):
   plt.setp(ax_margin_MQ, xlim=mq_lim, ylim=[0, 10])
   ax_margin_MQ.legend(loc='upper center', fontsize=7)
 
-  # ax_margin_d.semilogx(binned_mq.sum(axis=0), d_values)
-  ax_margin_d.semilogx(binned_mq[30:, :].sum(axis=0) / float(binned_mq[30:, :].sum()), d_values, label='MQ >= 30', color='g', lw=3)
-  ax_margin_d.semilogx(binned_mq[:30, :].sum(axis=0) / float(binned_mq[:30, :].sum()), d_values, label='MQ < 30', color='r', lw=1)
+  try:
+    ax_margin_d.semilogx(binned_mq[30:, :].sum(axis=0) / float(binned_mq[30:, :].sum()), d_values, label='MQ >= 30', color='g', lw=3)
+  except ValueError:
+    pass
+  try:
+    ax_margin_d.semilogx(binned_mq[:30, :].sum(axis=0) / float(binned_mq[:30, :].sum()), d_values, label='MQ < 30', color='r', lw=1)
+  except ValueError:
+    pass
   plt.setp(ax_margin_d, ylim=d_lim)
   ax_margin_d.legend(loc='upper right', fontsize=7)
 
