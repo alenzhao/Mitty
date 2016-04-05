@@ -47,12 +47,14 @@ def analyze_read(read, window=100, extended=False):
         rs, chrom, cpy, ro_m, pos_m, rl_m, cigar_m, ro, pos, rl, cigar = read.qname.split('|')
       read_serial = int(rs) * 10 + (not read.is_read1)
     else:
-      rs, chrom, cpy, ro, pos, rl, cigar = read.qname.split('|')[:9]
+      rs, chrom, cpy, ro, pos, rl, cigar = read.qname.split('|')[:7]
       read_serial = int(rs)
     ro, chrom, cpy, pos, rl, pos_m, rl_m = int(ro), int(chrom), int(cpy), int(pos), int(rl), int(pos_m), int(rl_m)
   except ValueError:
-    logger.debug('Error processing qname: qname={:s}, chrom={:d}, pos={:d}'.format(read.qname, read.reference_id + 1, read.pos))
-    return early_exit_value
+    msg = 'Error processing read: {}\n'.format(read)
+    # msg += '\n'.join(['{}: {}'.format(d, getattr(read, d)) for d in dir(read) if not hasattr(getattr(read, d), '__call__')])
+    logger.critical(msg)
+    raise RuntimeError(msg)
 
   chrom_c, pos_c, cigar_c, unmapped = 1, 1, 1, 0
 
