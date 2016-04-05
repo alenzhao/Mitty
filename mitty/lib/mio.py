@@ -20,6 +20,10 @@ MULTI_FASTA = 0
 MULTI_DIR = 1
 
 
+def parse_sequence_desc_line(ln):
+  return ln[1:-1].split(' ', 1) if ' ' in ln[1:-1] else (ln[1:-1], '')
+
+
 def iter_fasta(fa_fname):
   """
   :param fa_fname: fasta or fa.gz file with one or more fasta sequences
@@ -39,7 +43,7 @@ def iter_fasta(fa_fname):
       if ln[0] == '>':  # Start of a sequence
         if len(seq):
           yield seq_id, seq_descr, (''.join(seq)).translate(tr)
-        seq_id, seq_descr = ln[1:-1].split(' ', 1)
+        seq_id, seq_descr = parse_sequence_desc_line(ln)
         seq = []
       else:
         seq.append(ln.strip())
@@ -105,9 +109,10 @@ class Fasta:
     """
     def dict_from_line(line):
       cells = line.split('\t')
+      seq_id, seq_descr = parse_sequence_desc_line(ln)
       return {
-        'seq_id': cells[0].split(' ', 1)[0],
-        'seq_description': cells[0].split(' ', 1)[1],
+        'seq_id': seq_id,
+        'seq_description': seq_descr,
         'seq_len': int(cells[1].strip()),
         'seq_md5': cells[2].strip()
       }
@@ -172,8 +177,8 @@ def load_single_line_unzipped_fasta(fa_fname):
   """Expects a fasta file with only one sequence and only upper case letters - will read other files but the result
   is not sanitized in any way - newlines and repeat masks are left in"""
   with open(fa_fname, 'r') as fasta_fp:
-    seq_id, seq_description = fasta_fp.readline()[1:-1].split(' ', 1)
-    seq = fasta_fp.read()
+    seq_id, seq_description = parse_sequence_desc_line(fasta_fp.readline())
+    seq = fasta_fp.read().strip()
   return seq, seq_id, seq_description
 
 
