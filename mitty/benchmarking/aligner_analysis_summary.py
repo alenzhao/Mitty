@@ -75,7 +75,7 @@ __html_template__ = \
 @click.command()
 @click.argument('tool')
 @click.argument('sample')
-@click.argument('graph')
+@click.option('--graph', default='-')
 @click.argument('summaryjson', type=click.Path(exists=True))
 @click.argument('novelplot', type=click.Path(exists=True))
 @click.argument('knownplot', type=click.Path(exists=True))
