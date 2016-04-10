@@ -68,7 +68,8 @@ def cli(indelpkl, outsuffix, indel_range, median_filter_size, title):
 def plot_fig(read_counts, indel_range, median_filter_kernel_size, title):
   fig, ax = setup_figure()
   axes_spec = build_axes_specs(read_counts, indel_range, title)
-  colors = [(v, v, v) for v in [0, 0.3, 0.6, 0.8]]
+  #colors = [(v, v, v) for v in [0, 0.3, 0.6, 0.8]]
+  colors = ['k', 'b', 'r']
   for d_error_cat, color in zip(d_error_categories, colors):
     plot_alignment_accuracy(read_counts, d_error_cat, color=color, ax=ax, kernel_size=median_filter_kernel_size)
   plot_read_count(read_counts, color='k', lw=2, ax=ax)

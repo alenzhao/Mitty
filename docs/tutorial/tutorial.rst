@@ -262,7 +262,7 @@ graphically (Requires Matplotlib_ to be installed).
 
 .. command-output:: indelplot --help
 
-.. command-output:: indelplot --title 'BWA' bwa_indel.pkl bwa_indel.png
+.. command-output:: indelplot --title 'BWA' bwa_indel.pkl bwa_indel.png --indel-range 100
     :cwd: .
 
 .. image:: novel-bwa_indel.png
