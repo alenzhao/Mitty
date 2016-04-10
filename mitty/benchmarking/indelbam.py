@@ -141,10 +141,9 @@ indel_categories = [('DEL >= 20 bp', -100000, -20), ('DEL < 20 bp', -20, -1),
                     ('INS < 20 bp', 0, 19), ('INS >= 20 bp', 19, 100000)]
 
 
-def summarize(alignment_data):
+def summarize(alignment_data, error_tols=[0, 10, 100]):
   """Simply tally up percentage corrects for Ref, SNP and Indel"""
   ad = alignment_data
-  ref_pc = ad['ref_r_cnt'][0] / float(ad['ref_r_cnt'].sum()) * 100
 
   v_len = ad['v_len']
   idx_snp = np.where(v_len == 0)[0][0]
@@ -152,22 +151,29 @@ def summarize(alignment_data):
   known_v_cnt = ad['known_v_r_cnt']
   novel_v_cnt = ad['novel_v_r_cnt']
 
-  known_snp_pc = known_v_cnt[idx_snp][0] / float(known_v_cnt[idx_snp].sum() or 1) * 100
-  novel_snp_pc = novel_v_cnt[idx_snp][0] / float(novel_v_cnt[idx_snp].sum() or 1) * 100
+  stats = {}
 
-  stats = {
-    'ref': ref_pc,
-    'known': {
-      'SNP': known_snp_pc
-    },
-    'novel': {
-      'SNP': novel_snp_pc
+  for et in error_tols:
+    ref_pc = ad['ref_r_cnt'][:et+1].sum() / float(ad['ref_r_cnt'].sum()) * 100
+
+    known_snp_pc = known_v_cnt[idx_snp][:et+1].sum() / float(known_v_cnt[idx_snp].sum() or 1) * 100
+    novel_snp_pc = novel_v_cnt[idx_snp][:et+1].sum() / float(novel_v_cnt[idx_snp].sum() or 1) * 100
+
+    these_stats = {
+      'ref': ref_pc,
+      'known': {
+        'SNP': known_snp_pc
+      },
+      'novel': {
+        'SNP': novel_snp_pc
+      }
     }
-  }
-  for k, r0, r1 in indel_categories:
-    indel_idx = np.where((r0 < v_len) & (v_len < r1))[0]
-    stats['known'][k] = known_v_cnt[indel_idx, 0].sum() / float(known_v_cnt[indel_idx, :].sum() or 1) * 100
-    stats['novel'][k] = novel_v_cnt[indel_idx, 0].sum() / float(novel_v_cnt[indel_idx, :].sum() or 1) * 100
+    for k, r0, r1 in indel_categories:
+      indel_idx = np.where((r0 < v_len) & (v_len < r1))[0]
+      these_stats['known'][k] = known_v_cnt[indel_idx, :et+1].sum() / float(known_v_cnt[indel_idx, :].sum() or 1) * 100
+      these_stats['novel'][k] = novel_v_cnt[indel_idx, :et+1].sum() / float(novel_v_cnt[indel_idx, :].sum() or 1) * 100
+
+    stats['d_error <= {} bp'.format(et)] = these_stats
 
   return stats
 

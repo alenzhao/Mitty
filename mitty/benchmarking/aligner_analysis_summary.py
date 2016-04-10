@@ -136,11 +136,17 @@ def aligner_accuracy_summary_table(summaryjson):
   data = json.load(open(summaryjson, 'r'))
   cols = ['DEL >= 20 bp', 'DEL < 20 bp', 'SNP', 'INS < 20 bp', 'INS >= 20 bp']
 
-  html = ['<table class="accuracy">']
-  html += ['<tr><th width=100px></th><th width=60px>REF</th>'] + ['<th width=100px>{}</th>'.format(h) for h in cols] + ['</tr>']
-  html += ['<tr><td>Novel</td><td rowspan=2>{:3.2f}</td>'.format(data['ref'])] + ['<td>{:3.2f}</td>'.format(data['novel'][c]) for c in cols] + ['</tr>']
-  html += ['<tr><td>Known</td>'] + ['<td>{:3.2f}</td>'.format(data['known'][c]) for c in cols] + ['</tr>']
-  html += ["</table>"]
+  html = []
+
+  for k in sorted(data.keys()):
+    this_data = data[k]
+
+    html += ['<b>{}</b>'.format(k)]
+    html += ['<table class="accuracy">']
+    html += ['<tr><th width=100px></th><th width=60px>REF</th>'] + ['<th width=100px>{}</th>'.format(h) for h in cols] + ['</tr>']
+    html += ['<tr><td>Novel</td><td rowspan=2>{:3.2f}</td>'.format(this_data['ref'])] + ['<td>{:3.2f}</td>'.format(this_data['novel'][c]) for c in cols] + ['</tr>']
+    html += ['<tr><td>Known</td>'] + ['<td>{:3.2f}</td>'.format(this_data['known'][c]) for c in cols] + ['</tr>']
+    html += ["</table>"]
 
   return html
 

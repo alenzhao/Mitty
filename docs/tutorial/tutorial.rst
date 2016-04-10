@@ -276,6 +276,25 @@ a-priori information about. In the case of BWA all variants are `novel`
 .. _Matplotlib: http://matplotlib.org/index.html
 
 
+Mapping quality
++++++++++++++++
+
+.. command-output:: mqplot --help
+.. command-output:: mqplot bwa_per.bam --title 'BWA' -o bwa_mq.png
+    :cwd: .
+
+
+Summary report
+++++++++++++++
+
+All the analysis done for a single aligner run can be collected together into a static html report using the
+``aligner-summary-report`` command.
+
+.. command-output:: aligner-summary-report --help
+.. command-output:: aligner-summary-report bwa g0_s0 bwa_indel_summary.json novel-bwa_indel.png known-bwa_indel.png bwa_mq.png bwa_cir.png bwa_mat.png report.html
+    :cwd: .
+
+
 Comparing mis-alignments
 ++++++++++++++++++++++++
 We can compare the two mis-alignment files we produced to extract which reads were misaligned in both instances, which
