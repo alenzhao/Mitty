@@ -89,6 +89,10 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.45.1.dev0**
+  * Added bugfix in indelbam to properly handle regions with no variants
+
+
 **1.44.1.dev0**
   * PySAM version fixed at 0.8.4: 0.9.0 gives a StringIO error. 0.8.3 is confused by some set_tag operations
   * Single aligner run summary generator complete

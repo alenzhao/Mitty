@@ -148,11 +148,12 @@ def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name, graph_
     # rm_stop = r.get_tag('Ze')
     r_chrom_cpy = r.get_tag('Zc')
 
-    advance_window(sample_variant_window, s_index, sample_size_1, r_start, r_stop,
-                   footprint_start, footprint_stop)
-    if has_graph:
-      advance_window(graph_variant_window, g_index, graph_size_1, r_start, r_stop,
+    if sample_size_1 >= 0:
+      advance_window(sample_variant_window, s_index, sample_size_1, r_start, r_stop,
                      footprint_start, footprint_stop)
+    if has_graph and graph_size_1 >= 0:
+        advance_window(graph_variant_window, g_index, graph_size_1, r_start, r_stop,
+                       footprint_start, footprint_stop)
 
     sample_vars = find_variants_over_read(
       sample_variant_window, graph_variant_window,
