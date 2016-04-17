@@ -1,4 +1,9 @@
 {
+  "notes": [
+    "This simulation uses the standard population and SFS models",
+    "to generate a simulation with 1000 genomes.",
+    "The indels are uniformly distribute from 1 to 21 bp."
+  ],
   "files": {
     "reference_file": "reddus_pentalgus.fa.gz",
     "dbfile": "reddus_genomes.h5"

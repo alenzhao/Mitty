@@ -149,6 +149,12 @@ class Population:
   def get_version(self):
     return self.fp.attrs['Mitty version']
 
+  def set_notes(self, notes):
+    self.fp.attrs['notes'] = notes
+
+  def get_notes(self):
+    return self.fp.attrs.get('notes', '')
+
   #TODO: make more detailed
   def __repr__(self):
     """Pretty print the genome file"""
@@ -189,6 +195,8 @@ class Population:
       rep_str += row_format.format(chrom, *all_cnts[n]) + '\n'
     rep_str += sep
     rep_str += row_format.format("Total", *[sum([cnts[n] for cnts in all_cnts]) for n in range(len(sample_names) + 1)]) + '\n'
+
+    rep_str += "\n\nNotes:\n{}".format(self.get_notes())
 
     return rep_str
 

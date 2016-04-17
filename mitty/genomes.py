@@ -95,6 +95,8 @@ class PopulationSimulator:
     self.seed_rng = np.random.RandomState(seed=master_seed)
     self.pop = vr.Population(fname=pop_db_name, mode='w', in_memory=False,
                              genome_metadata=self.ref.get_seq_metadata())
+    if 'notes' in params:
+      self.pop.set_notes('\n'.join(params['notes']))
 
     self.sfs_model = load_site_frequency_model(params.get('site_model', None))
     self.sfs_p, self.sfs_f = self.sfs_model.get_spectrum() if self.sfs_model is not None else (None, None)

@@ -66,6 +66,7 @@ Correctness
    - Run several such processes in parallel, generating separate fastq files. In the end, concatenate them together
      Works for both gzipped and unzipped the same!
 
+* Indel plot, create CI's based on bernoulli trials
 
 
 Efficiency changes
