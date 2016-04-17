@@ -76,6 +76,7 @@ __html_template__ = \
 @click.argument('tool')
 @click.argument('sample')
 @click.option('--graph', default='-')
+@click.option('--db-summary', default='-')
 @click.argument('summaryjson', type=click.Path(exists=True))
 @click.argument('novelplot', type=click.Path(exists=True))
 @click.argument('knownplot', type=click.Path(exists=True))
@@ -83,15 +84,15 @@ __html_template__ = \
 @click.argument('circleplot', type=click.Path(exists=True))
 @click.argument('matrixplot', type=click.Path(exists=True))
 @click.argument('htmlout', type=click.Path())
-def cli(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, htmlout):
+def cli(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary, htmlout):
   """Collect all the bits and pieces of an aligner analysis and compact them together into a
   single page, static HTML file with all the figures embedded as b64 encoded data"""
   open(htmlout, 'w').write(
-    create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot)
+    create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary)
   )
 
 
-def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot):
+def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary):
   """."""
   title = "{} - Aligner report".format(tool)
 
@@ -101,6 +102,12 @@ def create_summary_page(tool, sample, graph, summaryjson, novelplot, knownplot, 
   html += aligner_accuracy_summary_table(summaryjson)
   html += ['<h3>Plots</h3>']
   html += plots_table(novelplot, knownplot, mqplot, circleplot, matrixplot)
+
+  if db_summary is not None:
+    html += ['<h3>Variant details</h3>']
+    html += ['<pre>']
+    html += [open(db_summary, 'r').read()]
+    html += ['</pre>']
 
   return __html_template__.format(title, '\n'.join(html))
 
