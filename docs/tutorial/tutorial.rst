@@ -102,6 +102,10 @@ Let's take a peek at the produced genome population database:
 .. command-output:: genomes genome-file summary reddus_genomes.h5
     :cwd: .
 
+.. program-output:: genomes genome-file summary reddus_genomes.h5 > reddus_genomes_summary.txt
+    :cwd: .
+    :shell:
+
 We can also take a look at the site frequency spectrum in the generated population, for chromosome 1, for example
 
 .. command-output:: genomes genome-file sfs reddus_genomes.h5 1
@@ -291,7 +295,7 @@ All the analysis done for a single aligner run can be collected together into a 
 ``aligner-summary-report`` command.
 
 .. command-output:: aligner-summary-report --help
-.. command-output:: aligner-summary-report bwa g0_s0 bwa_indel_summary.json novel-bwa_indel.png known-bwa_indel.png bwa_mq.png bwa_cir.png bwa_mat.png report.html
+.. command-output:: aligner-summary-report bwa g0_s0 bwa_indel_summary.json novel-bwa_indel.png known-bwa_indel.png bwa_mq.png bwa_cir.png bwa_mat.png report.html --db-summary reddus_genomes_summary.txt
     :cwd: .
 
 
