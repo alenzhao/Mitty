@@ -90,6 +90,11 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.46.dev0**
+  * MQ plot improved
+  * perfectbam +indelbam BAMs being properly closed now.
+
+
 **1.45.1.dev0**
   * Added bugfix in indelbam to properly handle regions with no variants
 

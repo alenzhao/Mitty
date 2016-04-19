@@ -83,6 +83,8 @@ def cli(perbam, gdb, indelbam, sample_name, indelpkl, summaryjson, indel_range, 
   t1 = time.time()
   logger.debug('Analyzed {:d} reads in {:2.2f}s'.format(total_read_count, t1 - t0))
 
+  outbam_fp.close()
+
   t0 = time.time()
   pysam.index(indelbam)
   t1 = time.time()

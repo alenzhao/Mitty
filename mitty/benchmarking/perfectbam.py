@@ -232,6 +232,9 @@ def cli(inbam, bad_bam, per_bam, cigar_errors, full_per_bam, full_bad_bam, windo
   t1 = time.time()
   logger.debug('Analyzed {:d} reads in {:2.2f}s. Found {:d} ({:2.2f}%) mis-aligned reads'.format(cnt, t1 - t0, mis, (100.0 * mis) / cnt))
 
+  bad_bam_fp.close()
+  per_bam_fp.close()
+
   if not no_index: sort_and_index_bams(bad_bam_fname, per_bam_fname)
 
 

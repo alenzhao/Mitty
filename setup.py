@@ -33,6 +33,7 @@ setup(
                           'badbams = mitty.benchmarking.badbams:cli',
                           #'alindel = mitty.benchmarking.indel_alignment_accuracy:cli',
                           'indelplot = mitty.benchmarking.indel_plot:cli',
+                          #'aggregate-summary-report = mitty.benchmarking.aggregate_indel_plot:cli',
                           'mqplot = mitty.benchmarking.mq_plot:cli',
                           'aligner-summary-report = mitty.benchmarking.aligner_analysis_summary:cli',
                           'vcf2pop = mitty.lib.vcf2pop:cli',
@@ -55,6 +56,7 @@ setup(
       'pysam==0.8.4',  # 0.9.0 gives a StringIO error. 0.8.3 is confused by some set_tag operations
       'h5py>=2.5.0',
       'matplotlib>=1.3.0',
-      'scipy'
+      'scipy',
+      #'plotly'
     ],
 )
