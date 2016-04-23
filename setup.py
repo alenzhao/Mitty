@@ -24,6 +24,7 @@ setup(
       'mitty.plugins.population': ['standard = mitty.plugins.population.standard',
                                    'vn = mitty.plugins.population.vn'],
       'mitty.plugins.reads': ['simple_sequential = mitty.plugins.reads.simple_sequential_plugin',
+                              'simple_se = mitty.plugins.reads.simple_se',
                               'simple_illumina = mitty.plugins.reads.simple_illumina_plugin'],
       # Command line scripts
       'console_scripts': ['genomes = mitty.genomes:cli',

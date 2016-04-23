@@ -90,7 +90,12 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
-**1.46.dev0**
+**1.47.0.dev0**
+  * SE read model implemented
+  *
+
+
+**1.46.0.dev0**
   * MQ plot improved
   * perfectbam +indelbam BAMs being properly closed now.
 

@@ -1,55 +1,47 @@
-#!/bin/bash
-set -ex
-
-genomes --help
-genomes show model-list
-
-# Generate genome database
-genomes generate variations.json -v -p
-genomes genome-file indel --sample-name g0_s0 --max-indel 20 reddus_genomes.h5 1
-
-
-# Write out one of the samples to a VCF file and view the file
-genomes genome-file write-vcf --sample-name g0_s0 reddus_genomes.h5 g0_s0.vcf
-head -n 20 g0_s0.vcf
-
-# generate reads
-reads generate reads.json -v -p
-# awk '/([0-9]+)D/ {print}' reads_c.fq
-
-# Align them using BWA and view the alignments
-#bwa index reddus_pentalgus.fa.gz
-pybwa reddus_pentalgus.fa.gz reads_c.fq bwa.bam -p -v
-samtools tview -d T -p "NC_010142.1:4400" bwa.bam reddus_pentalgus.fa.gz
-samtools tview -d T -p "NC_010142.1:8900" bwa.bam reddus_pentalgus.fa.gz
-
-# Analyse the alignments
-perfectbam --perfect-bam -v -v -p bwa.bam
-alindel --sample-name g0_s0 --indel-range 20 bwa_per.bam reddus_genomes.h5 bwa_indel.json
-cat bwa_indel.json  # Note that indel counts are for each chromosome *copy* separately
-alindel_plot -f bwa_indel.json --indel-range 20 -o bwa_indel.png
-
-
-# Show aligner benchmarking: do another run with a 'crappier aligner'
-pybwa reddus_pentalgus.fa.gz reads_c.fq bwa_poor.bam -p -v -P -S  # No mate rescue or pairing
-
-# Confusion plots
-misplot bwa_bad.bam --matrix bwa_mat.png --circle bwa_cir.png
-misplot bwa_poor_bad.bam --matrix bwa_poor_mat.png --circle bwa_poor_cir.png
-
-# Analyse the alignments
-perfectbam --perfect-bam -v -v -p bwa_poor.bam
-alindel --sample-name g0_s0 --indel-range 20 bwa_poor_per.bam reddus_genomes.h5 bwa_poor_indel.json
-#cat bwa_poor_indel.json  # Note that indel counts are for each chromosome *copy* separately
-
-alindel_plot -f bwa_indel.json -l 'BWA' -f bwa_poor_indel.json -l 'BWA/poor' --indel-range 20 -o combined_indel.png
-
-alindel --sample-name g0_s1 --indel-range 20 bwa_per.bam reddus_genomes.h5 bwa_scrambled_indel.json
-alindel_plot -f bwa_indel.json -l 'BWA' -f bwa_poor_indel.json -l 'BWA/poor' -f bwa_scrambled_indel.json -l 'BWA/scambled' --indel-range 20 -o combined_indel.png
-
-
-# For reads solely from neighborhoods of variants
-genomes generate variations_few_snps.json -v -p
-genomes genome-file write-vcf --sample-name g0_s0 reddus_genomes_few_snps.h5 g0_s0_few_snps.vcf
-reads generate reads_variants_only.json -v -p
-pybwa reddus_pentalgus.fa.gz reads_variants_only.fq reads_vo.bam -p -v
+  genomes
+  genomes --version
+ genomes show parameters
+ genomes show model-list
+  genomes show variant-model snp
+  genomes show spectrum-model double_exp
+ genomes show population-model standard
+ genomes generate --dry-run variations.json
+ genomes generate variations.json -v -p
+ genomes genome-file summary reddus_genomes.h5
+ genomes genome-file sfs reddus_genomes.h5 1
+ genomes genome-file write-vcf reddus_genomes.h5 g0_s0.vcf --sample-name 'g0_s0'
+ head -n 20 g0_s0.vcf
+ reads show parameters
+ reads show model-list
+ reads show read-model simple_illumina
+  reads generate reads.json -v
+  reads --qname
+ head -n 16 reads_c.fq | awk '/^@/ {print}'
+  cat reads.bed
+ bwa index reddus_pentalgus.fa.gz
+ samtools tview -d T -p "NC_010142.1:50" bwa.bam reddus_pentalgus.fa
+ perfectbam --help
+ perfectbam --tags
+  perfectbam -v -v bwa.bam
+  perfectbam bwa_poor.bam
+ misplot --help
+ misplot bwa_bad.bam --matrix bwa_mat.png --circle bwa_cir.png
+ misplot bwa_poor_bad.bam --matrix bwa_poor_mat.png --circle bwa_poor_cir.png
+ indelbam --help
+ indelbam --tags
+ indelbam bwa_per.bam reddus_genomes.h5 g0_s0 bwa_indel.bam bwa_indel.pkl bwa_indel_summary.json --indel-range 50
+ indelbam bwa_poor_per.bam reddus_genomes.h5 g0_s0 bwa_poor_indel.bam bwa_poor_indel.pkl bwa_poor_indel_summary.json --indel-range 50
+ cat bwa_indel_summary.json
+ indelplot --help
+ indelplot --title 'BWA' bwa_indel.pkl bwa_indel.png --indel-range 100
+ mqplot --help
+ mqplot bwa_per.bam --title 'BWA' -o bwa_mq.png
+ aligner-summary-report --help
+ aligner-summary-report bwa g0_s0 bwa_indel_summary.json novel-bwa_indel.png known-bwa_indel.png bwa_mq.png bwa_cir.png bwa_mat.png report.html --db-summary reddus_genomes_summary.txt
+ badbams --help
+ badbams bwa_bad.bam bwa_poor_bad.bam -v -p
+ acubam --help
+.. #  command-output:: acubam bwa.bam reddus_genomes.h5 --sample-name "g0_s0" -p
+ genomes from-vcf --help
+ genomes from-vcf g0_s0.vcf.gz converted.h5 --sample-name g0_s0 -v
+ genomes genome-file summary converted.h5

@@ -167,6 +167,14 @@ Use the following command to mount the Mitty directory (so we can run ``pip inst
 
   docker run -ti -v /Users/kghose/Code/Mitty:/mountedcwd images.sbgenomics.com/kghosesbg/mitty:latest
 
+Make sure things worked
+
+  docker run --rm images.sbgenomics.com/kghosesbg/mitty:latest reads --version
+
+
+  docker commit 0459cf48f746 images.sbgenomics.com/kghosesbg/mitty:latest
+  docker push images.sbgenomics.com/kghosesbg/mitty:latest
+
 For matplotlib font::
 
   apt-get install ttf-bitstream-vera
