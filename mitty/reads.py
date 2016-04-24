@@ -4,6 +4,7 @@ import os
 import time
 import io
 import gzip
+from itertools import izip
 
 import numpy as np
 import click
@@ -303,6 +304,56 @@ def write_reads_to_file(fastq_fp_1, fastq_fp_2,
       if fastq_c_fp_1 is not None:
         fastq_c_fp_1.write('@' + qname + '\n' + cr_seq[n] + '\n+\n' + phred[n] + '\n')
     template_count = reads.shape[0]
+  return template_count, bases_covered
+
+
+# For strange reasons, this is actually more inefficient than the clumsy version above
+def write_reads_to_file_experimental(fastq_fp_1, fastq_fp_2,
+                        fastq_c_fp_1, fastq_c_fp_2,
+                        reads, paired, pos, cigars,
+                        chrom, cpy,
+                        first_serial_no):
+  bases_covered = 0
+
+  # mitty.plugins.reads.base_plugin.dtype =
+  # [('start_a', 'i4'), ('read_len', 'i4'), ('read_order', 'i1'), ('perfect_reads', 'O'),
+  #  ('corrupt_reads', 'O'), ('phred', 'O')]
+
+  read1, qname, r1_c, r2_c = True, '', None, None
+  for n, ((_, r_len, ro, pr, cr, ph), cigar, r_pos) in enumerate(izip(reads, cigars, pos)):
+    bases_covered += r_len
+
+    if read1: # We create the first part of the qname, and the string for the first read
+      qname = '{:d}|{:d}|{:d}|{:d}|{:d}|{:d}|{:s}'.\
+        format(first_serial_no + n, chrom, cpy, ro, r_pos, r_len, cigar)
+      r1_p = pr + '\n+\n' + '~' * r_len + '\n'
+      if fastq_c_fp_1 is not None:
+        r1_c = cr + '\n+\n' + ph + '\n'
+    else:
+      qname += '{:d}|{:d}|{:d}|{:s}'.format(ro, r_pos, r_len, cigar)
+      r2_p = pr + '\n+\n' + '~' * r_len + '\n'
+      if fastq_c_fp_2 is not None:
+        r2_c = cr + '\n+\n' + ph + '\n'
+
+    if paired:
+      if not read1:  # Time to dump the reads
+        fastq_fp_1.write('@' + qname + '/1\n' + r1_p)
+        fastq_fp_2.write('@' + qname + '/2\n' + r2_p)
+
+        if fastq_c_fp_1 is not None:
+          fastq_c_fp_1.write('@' + qname + '/1\n' + r1_c)
+          fastq_c_fp_2.write('@' + qname + '/2\n' + r2_c)
+
+        read1 = True
+      else:
+        read1 = False
+    else:  # SE reads, just write out everything now
+      fastq_fp_1.write('@' + qname + '\n' + r1_p)
+      if fastq_c_fp_1 is not None:
+        fastq_c_fp_1.write('@' + qname + '\n' + r1_c)
+
+  template_count = reads.shape[0] / 2 if paired else reads.shape[0]
+
   return template_count, bases_covered
 
 
