@@ -103,33 +103,10 @@ def plot_mq(binned_mq):
               cmap='gray_r')
   plt.setp(ax2d, xlim=mq_lim, ylim=d_lim, xlabel='MQ', ylabel='|d_error| (bp)')
 
-  # colors = [(v, v, v) for v in [0, 0.3, 0.6]]
-  # for d_error_cat, color in zip(d_error_categories, colors):
-  #   ax_margin_MQ.semilogy(mq_values, binned_mq[:, :d_error_cat[1] + 1].sum(axis=1), color=color, lw=2, alpha=0.71)
-  # ax_margin_MQ.semilogy(mq_values, binned_mq[:, :1].sum(axis=1) / float(binned_mq[:, :1].sum()), color='g', lw=3, alpha=0.71, label='|d| = 0')
-  # ax_margin_MQ.semilogy(mq_values, binned_mq[:, 1:].sum(axis=1) / float(binned_mq[:, 1:].sum()), color='r', lw=1, alpha=0.71, label='|d| > 0')
-  # plt.setp(ax_margin_MQ, xlim=mq_lim, ylim=[0, 10])
-  #ax_margin_MQ.legend(loc='upper center', fontsize=7)
-
-  ax_margin_MQ.plot(mq_values, binned_mq[:, :1].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='k')
+  ax_margin_MQ.plot(mq_values, binned_mq[:, :1].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='k', label='data')
+  ax_margin_MQ.plot(mq_values, 1 - 10.0**(-mq_values/10.0), color='k', linestyle=':', label=r'$10^\frac{-MQ}{10}$')
+  ax_margin_MQ.legend(loc='lower center')
   plt.setp(ax_margin_MQ, xlim=mq_lim, ylim=[-0.1, 1.1], title='Frac. reads correctly aligned')
 
-  # try:
-  #   ax_margin_d.semilogx(binned_mq[30:, :].sum(axis=0) / float(binned_mq[30:, :].sum()), d_values, label='MQ >= 30', color='g', lw=3)
-  # except ValueError:
-  #   pass
-  # try:
-  #   ax_margin_d.semilogx(binned_mq[:30, :].sum(axis=0) / float(binned_mq[:30, :].sum()), d_values, label='MQ < 30', color='r', lw=1)
-  # except ValueError:
-  #   pass
-
-  ax_margin_d.plot(np.dot(mq_values, binned_mq)/binned_mq.sum(axis=0).astype(float), d_values, color='k')
+  ax_margin_d.plot(np.dot(mq_values, binned_mq)/binned_mq.sum(axis=0).astype(float), d_values, 'ko')
   plt.setp(ax_margin_d, ylim=d_lim, xlim=mq_lim, title='Mean MQ')
-  #ax_margin_d.legend(loc='upper right', fontsize=7)
-
-  # fig = plt.figure()
-  # ax = fig.add_subplot(211)
-  # plt.pcolor(np.arange(255), np.arange(MAX_POS + 1), binned_mq.T,
-  #            norm=LogNorm(vmin=1, vmax=binned_mq.max()),
-  #            cmap='gray_r')
-  # plt.setp(ax, xlim=(-10, 255), ylim=(-10, MAX_POS), xlabel=' MQ', ylabel='|d_error| (bp)')
