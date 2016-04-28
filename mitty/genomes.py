@@ -95,8 +95,6 @@ class PopulationSimulator:
     self.seed_rng = np.random.RandomState(seed=master_seed)
     self.pop = vr.Population(fname=pop_db_name, mode='w', in_memory=False,
                              genome_metadata=self.ref.get_seq_metadata())
-    if 'notes' in params:
-      self.pop.set_notes('\n'.join(params['notes']))
 
     self.sfs_model = load_site_frequency_model(params.get('site_model', None))
     self.sfs_p, self.sfs_f = self.sfs_model.get_spectrum() if self.sfs_model is not None else (None, None)
@@ -105,6 +103,8 @@ class PopulationSimulator:
     self.population_model = load_population_model(params.get('population_model', None), params)
 
     self.unique_variant_count, self.total_variant_count = 0, 0
+
+    self.params = params
 
   def get_chromosome_list(self):
     return self.chromosomes
@@ -133,6 +133,16 @@ class PopulationSimulator:
       self.pop.add_sample_chromosome(chrom=chrom, sample_name=sample_name, indexes=this_sample)
       self.total_variant_count += len(this_sample)
       yield
+
+  def close(self):
+    notes = ''
+    if hasattr(self.population_model, 'inspect'):
+      notes += self.population_model.inspect(self.pop)
+
+    if 'notes' in self.params:
+      notes += '\n\n' + '\n'.join(self.params['notes']) + '\n'
+
+    self.pop.set_notes(notes)
 
 
 def load_site_frequency_model(sfs_model_json):
@@ -210,6 +220,7 @@ def generate(param_fname, ref, db, dry_run, v, p):
     for chrom in simulation.get_chromosome_list():
       for _ in simulation.generate_and_save_samples(chrom):
         bar.update(1)
+  simulation.close()
   t1 = time.time()
   logger.debug('Took {:f}s'.format(t1 - t0))
   logger.debug('{:d} unique variants, {:d} variants in samples'.format(simulation.unique_variant_count, simulation.total_variant_count))
@@ -279,6 +290,13 @@ def write_vcf(dbfile, vcfgz, sample_name):
 def summary(dbfile, sample_name):
   """Print some useful information about the database"""
   print(vr.Population(fname=dbfile).pretty_print_summary(sample_name))
+
+
+@g_file.command('notes')
+@click.argument('dbfile', type=click.Path(exists=True))
+def db_notes(dbfile):
+  """Print the notes in the file"""
+  print(vr.Population(fname=dbfile).get_notes())
 
 
 @g_file.command('samples')

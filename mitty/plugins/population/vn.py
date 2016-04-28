@@ -16,6 +16,7 @@ v(n-1) E vn
 This plugin does not honor the site frequency spectrum model and ignores the original 'p' values
 """
 import numpy as np
+from collections import OrderedDict
 
 __example_param_text = """
 {
@@ -86,3 +87,26 @@ class Model:
   def get_sample_count_estimate(self):
     """Give us an as exact as possible estimate of how many samples we will produce"""
     return 1 + len(self.p_vn)
+
+  def inspect(self, pop):
+    """Given a population created using this plugin in return a text string with a description of what this population
+    is about."""
+    chr_list = pop.get_chromosome_list()
+    v_list = ['vx'] + ['v{:d}'.format(n) for n in range(len(self.p_vn))]
+
+    counts = OrderedDict(
+      [(k, []) for k in v_list] +
+      [(k, []) for i in range(1, len(v_list)) for k in [s.format(v_list[0], v_list[i]) for s in ['{} - {}', '{} & {}']]]
+    )
+
+    for n_chr, chr in enumerate(chr_list):
+      v_idx = [set(pop.get_sample_variant_index_for_chromosome(chr, v)['index']) for v in v_list]
+      for i, v in enumerate(v_list):
+        counts[v] += [len(v_idx[i])]
+      for i in range(1, len(v_list)):
+        counts['{} - {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] - v_idx[i])]
+        counts['{} & {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] & v_idx[i])]
+
+    rep = [('{:>10}{:>12}' + '{:>10,}' * len(chr_list)).format('', 'All', *chr_list)]
+    rep += [('{:>10}:{:>12,}' + '{:>10,}' * len(v)).format(k, sum(v), *v) for k, v in counts.items()]
+    return '\n'.join(rep)
