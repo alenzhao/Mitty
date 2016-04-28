@@ -25,8 +25,8 @@ def vn_test():
     },
     "population_model": {
       "vn": {
-        "p_vx": 0.2,
-        "p_vn": [0.1, 0.5, 0.9]
+        "p_S": 0.104,
+        "p_G": [0.1, 0.5, 0.9]
       }
     },
     "chromosomes": [1],
@@ -48,19 +48,20 @@ def vn_test():
   pop = vr.Population(fname=db_file, mode='r', in_memory=False)
   # ml = pop.get_variant_master_list(chrom=4)
 
-  chrom_idx_vx = pop.get_sample_variant_index_for_chromosome(1, 'vx')
-  idx_vx = [set([i[0] for i in chrom_idx_vx if i[1] != c]) for c in [1, 0]]
+  S = set(pop.get_sample_variant_index_for_chromosome(1, 'S')['index'])
+  G0 = set(pop.get_sample_variant_index_for_chromosome(1, 'G0')['index'])
+  G1 = set(pop.get_sample_variant_index_for_chromosome(1, 'G1')['index'])
+  G2 = set(pop.get_sample_variant_index_for_chromosome(1, 'G2')['index'])
 
-  idx_vn = []
-  for v in ['v0', 'v1', 'v2']:
-    chrom_idx = pop.get_sample_variant_index_for_chromosome(1, v)
-    idx_vn.append([set([i[0] for i in chrom_idx if i[1] != c]) for c in [1, 0]])
+  known = S & G0
 
-  for n in range(len(idx_vn) - 1):
-    for cpy in [0, 1]:
-      assert len(idx_vx[cpy]) > 0, idx_vx[cpy]
-      assert abs(len(idx_vn[n][cpy].intersection(idx_vn[n + 1][cpy])) - len(idx_vn[n][cpy])) < 0.05 * len(idx_vn[n][cpy])
-      assert abs(len(idx_vx[cpy].intersection(idx_vn[n][cpy])) - len(idx_vx[cpy].intersection(idx_vn[n + 1][cpy]))) < 0.05 * len(idx_vx[cpy])
+  assert known == S & G1
+  assert known == S & G2
+
+  novel = S - G0
+
+  assert novel == S - G1
+  assert novel == S - G2
 
   os.remove(param_file)
   os.remove(db_file)
