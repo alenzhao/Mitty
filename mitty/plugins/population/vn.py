@@ -114,6 +114,31 @@ class Model:
         counts['{} - {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] - v_idx[i])]
         counts['{} & {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] & v_idx[i])]
 
-    rep = [('{:>10}{:>12}' + '{:>10,}' * len(chr_list)).format('', 'All', *chr_list)]
-    rep += [('{:>10}:{:>12,}' + '{:>10,}' * len(v)).format(k, sum(v), *v) for k, v in counts.items()]
+    rep = [
+      "The vn model was designed to generate one sample genome (S) and a series of graphs (G0, G1, ...)",
+      "",
+      "S has a fraction of variants not found in G0, G1 ... (novel variants)",
+      "and the rest are found in G0 (and G1, G2 ...) (known variants).",
+      "",
+      "In set notation:",
+      "|S - G0| = |S - G1| = |S - G2| ... = novel variants",
+      "|S & G0| = |S & G1| ... = known variants",
+      "",
+      "G0, G1, ... are designed like babushka dolls such that G0 is a subset of G1",
+      "G1 a subset of G2 and so on.",
+      "",
+      "In set notation:",
+      "G0 < G1 < G2 ... (< standing for subset)",
+      "",
+      "WARNING:",
+      "Though, technically, it is possible to use G0, G1 ... as 'samples' to generate reads",
+      "this will be incorrect to do: G0, G1 may contain 'illegal' combinations of variations",
+      "such as a deletion with a SNP in the middle of it because they represent population graphs.",
+      "Such 'illegal' patterns lead to undefined behavior in the read generator.",
+      "The best you can hope for is an explicit error message in case of such use.",
+      ""
+    ]
+    rep += ['{:>10}  {}'.format('Set operation', 'Variant counts across chromosomes')]
+    rep += [('{:>10}{:>12}' + '{:>10,}' * len(chr_list)).format('', 'All', *chr_list)]
+    rep += [('{:>10} {:>12,}' + '{:>10,}' * len(v)).format('|{}|'.format(k), sum(v), *v) for k, v in counts.items()]
     return '\n'.join(rep)
