@@ -48,9 +48,6 @@ XC  Z    Aligned CIGAR
 """
 
 
-MAX_D_ERROR = creed.MAX_D_ERROR
-
-
 def print_tags(ctx, param, value):
   if not value or ctx.resilient_parsing:
     return
@@ -78,11 +75,13 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
   """
   n0 = progress_bar_update_interval
   analyze_read = creed.analyze_read
-  tot_read_cnt, mis_read_cnt = 0, 0
+  tot_read_cnt, mis_read_cnt, skipped_read_cnt = 0, 0, 0
   for tot_read_cnt, read in enumerate(bam_in_fp):
-    read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, read_is_unmapped \
-      = analyze_read(read, window, extended)
-    if read_serial is None: continue  # Something wrong with this read.
+    read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, read_is_unmapped, d \
+      = analyze_read(read, extended)
+    if read_serial is None:  # Something wrong with this read.
+      skipped_read_cnt += 1
+      continue
     read_is_misaligned = not (chrom_c and pos_c and (cigar_c or (not flag_cigar_errors_as_misalignments)))
     if (read_is_misaligned and full_bad_bam) or full_perfect_bam:  # Need all the read info, incl seq and quality
       new_read = read
@@ -106,7 +105,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
                        ('ZE', pos + rl, 'i'),
                        ('Ze', pos_m + rl_m, 'i'),
                        ('Xf', 2 if read_is_unmapped else (chrom_c and pos_c), 'i'),
-                       ('Xd', min(abs(read.pos - pos), MAX_D_ERROR) if chrom_c else MAX_D_ERROR),
+                       ('Xd', d),
                        ('YR', chrom_c, 'i'),
                        ('YP', pos_c, 'i'),
                        ('YC', cigar_c, 'i'),
@@ -137,9 +136,9 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
 
     n0 -= 1
     if n0 == 0:
-      yield tot_read_cnt, mis_read_cnt
+      yield tot_read_cnt, mis_read_cnt, skipped_read_cnt
       n0 = progress_bar_update_interval
-  yield tot_read_cnt + 1, mis_read_cnt  # tot_read_cnt starts from 0 actually ...
+  yield tot_read_cnt + 1, mis_read_cnt, skipped_read_cnt  # tot_read_cnt starts from 0 actually ...
 
 
 def sort_and_index_bams(bad_bam_fname, per_bam_fname):
@@ -216,21 +215,24 @@ def cli(inbam, bad_bam, per_bam, cigar_errors, full_per_bam, full_bad_bam, windo
   bad_bam_fp = pysam.AlignmentFile(bad_bam_fname, 'wb', header=new_header)
   per_bam_fp = pysam.AlignmentFile(per_bam_fname, 'wb', header=new_header)
 
-  cnt, mis = 0, 0
+  cnt, mis, skip = 0, 0, 0
   t0 = time.time()
   total_read_count = bam_in_fp.mapped + bam_in_fp.unmapped  # Sadly, this is only approximate
   progress_bar_update_interval = int(0.01 * total_read_count)
   with click.progressbar(length=total_read_count, label='Processing BAM',
                          file=None if p else io.BytesIO()) as bar:
-    for cnt, mis in process_file(bam_in_fp=bam_in_fp, bad_bam_fp=bad_bam_fp, per_bam_fp=per_bam_fp,
-                                 full_perfect_bam=full_per_bam,
-                                 full_bad_bam=full_bad_bam,
-                                 window=window,
-                                 flag_cigar_errors_as_misalignments=cigar_errors, extended=x,
-                                 progress_bar_update_interval=progress_bar_update_interval):
+    for cnt, mis, skip in process_file(
+      bam_in_fp=bam_in_fp, bad_bam_fp=bad_bam_fp, per_bam_fp=per_bam_fp,
+      full_perfect_bam=full_per_bam,
+      full_bad_bam=full_bad_bam,
+      window=window,
+      flag_cigar_errors_as_misalignments=cigar_errors, extended=x,
+      progress_bar_update_interval=progress_bar_update_interval):
       bar.update(progress_bar_update_interval)
   t1 = time.time()
-  logger.debug('Analyzed {:d} reads in {:2.2f}s. Found {:d} ({:2.2f}%) mis-aligned reads'.format(cnt, t1 - t0, mis, (100.0 * mis) / cnt))
+  logger.debug('Analyzed {:d} reads in {:2.2f}s. '
+               'Found {:d} ({:2.2f}%) mis-aligned reads. '
+               'Skipped {:d} reads'.format(cnt, t1 - t0, mis, (100.0 * mis) / cnt, skip))
 
   bad_bam_fp.close()
   per_bam_fp.close()

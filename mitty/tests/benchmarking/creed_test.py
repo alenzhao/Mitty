@@ -1,133 +1,268 @@
 from nose.tools import assert_raises
 
+import pysam
+
 import mitty.benchmarking.creed as creed
 
 
-class MyRead:
-  def __init__(self, qname, secondary, paired, read1, unmapped, reference_id, pos, cigarstring):
-    self.qname, self.is_secondary, self.is_paired, self.is_read1 = qname, secondary, paired, read1
-    self.is_unmapped, self.reference_id, self.pos, self.cigarstring = unmapped, reference_id, pos, cigarstring
+# class MyRead:
+#   def __init__(self, qname, secondary, paired, read1, unmapped, reference_id, pos, cigarstring):
+#     self.qname, self.is_secondary, self.is_paired, self.is_read1 = qname, secondary, paired, read1
+#     self.is_unmapped, self.reference_id, self.pos, self.cigarstring = unmapped, reference_id, pos, cigarstring
 
 
-def analyze_read_test():
-  """Read analysis"""
-  qname = '3|15|0|1|898|100|100=|0|744|100|24=2I74='
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=True, unmapped=False, reference_id=14, pos=898, cigarstring='100M')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
-  assert read_serial == 30, read_serial
-  assert chrom == 15, chrom
-  assert cpy == 0, cpy
-  assert ro == 1, ro
-  assert pos == 898, pos
-  assert cigar == '100M', cigar
-  assert chrom_c and pos_c and cigar_c == 1
+def analyze_read_test0():
+  """analyze read: ignore secondary alignment"""
+  r = pysam.AlignedSegment()
+  r.is_secondary = True
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
 
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=False, unmapped=False, reference_id=14, pos=744, cigarstring='24M2I74M')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
-  assert read_serial == 31, read_serial
-  assert chrom == 15, chrom
-  assert cpy == 0, cpy
-  assert ro == 0, ro
-  assert pos == 744, pos
-  assert cigar == '24M2I74M', cigar
-  assert chrom_c and pos_c and cigar_c == 1
-
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=False, unmapped=False, reference_id=14, pos=744, cigarstring='24M2I74M')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
-  assert read_serial == 31, read_serial
-  assert chrom == 15, chrom
-  assert cpy == 0, cpy
-  assert ro == 0, ro
-  assert pos == 744, pos
-  assert cigar == '24M2I74M', cigar
-  assert chrom_c and pos_c and cigar_c == 1
+  assert read_serial is None
 
 
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=True, unmapped=False, reference_id=14, pos=898, cigarstring='24M2I74M')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
-  assert read_serial == 30, read_serial
-  assert chrom == 15, chrom
-  assert cpy == 0, cpy
-  assert ro == 1, ro
-  assert pos == 898, pos
-  assert cigar == '100M', cigar
-  assert chrom_c == 1
-  assert pos_c == 1
-  assert cigar_c == 0
+def analyze_read_test1():
+  """analyze read: ignore supplementary alignment"""
+  r = pysam.AlignedSegment()
+  r.is_supplementary = True
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert read_serial is None
 
 
 def analyze_read_test2():
-  """Read analysis for reads inside long deletions."""
-  qname = '3|15|1|1|700|100|200S|0|900|100|100M'
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=True, unmapped=False, reference_id=14, pos=700, cigarstring='100I')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
-  assert read_serial == 30, read_serial
-  assert chrom == 15, chrom
-  assert cpy == 1, cpy
-  assert ro == 1, ro
-  assert pos == 700, pos
-  assert cigar == '200S', cigar
+  """analyze read: raise runtime error for malformed qname"""
+  r = pysam.AlignedSegment()
+  r.qname = 'To forgive is divine'
+
+  assert_raises(RuntimeError, creed.analyze_read, r)
+
+
+# @read_serial|chrom|copy|ro|pos|rlen|cigar|ro|pos|rlen|cigar
+
+def analyze_read_test3():
+  """analyze read: parse SE qname"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|1|100|100='
+  r.is_paired = False
+  r.cigarstring = '100='
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r, extended=True)
+
+  assert read_serial == 1
+  assert chrom == 1
+  assert cpy == 0
+  assert ro == 0
+  assert pos == 1
+  assert rl == 100
+  assert cigar == '100='
+
+
+def analyze_read_test4():
+  """analyze read: extended/traditional CIGAR conversion"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|1|100|100='
+  r.is_paired = False
+  r.cigarstring = '100='
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert cigar == '100M'
+
+
+def analyze_read_test5():
+  """analyze read: parse paired qname"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|1|100|100=|1|201|100|100='
+  r.is_paired = True
+  r.is_read1 = True
+  r.cigarstring = '100='
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert read_serial == 10
+  assert chrom == 1
+  assert cpy == 0
+  assert ro == 0
+  assert pos == 1
+  assert rl == 100
+  assert cigar == '100M'
+
+  assert ro_m == 1
+  assert pos_m == 201
+  assert rl_m == 100
+  assert cigar_m == '100M'
+
+
+def analyze_read_test6():
+  """analyze read: check reference read"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|1|100|100=|1|201|100|100='
+  r.is_paired = True
+
+  # Read 1
+  r.is_read1 = True
+  r.cigarstring = '100M'
+  r.reference_id = 0
+  r.pos = 1
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
+
+  # Read 2
+  r.is_read1 = False
+  r.cigarstring = '100M'
+  r.reference_id = 0
+  r.pos = 201
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
+
+  # Read 1 off by 10
+  r.is_read1 = True
+  r.cigarstring = '100M'
+  r.reference_id = 0
+  r.pos = 11
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 0
+  assert cigar_c == 1
+  assert d == 10
+
+  # Read 1 is unmapped
+  r.is_read1 = True
+  r.is_unmapped = True
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 0
+  assert pos_c == 0
+  assert cigar_c == 0
+  assert d == creed.MAX_D_ERROR
+
+  # Read 1 on wrong chrom
+  r.is_unmapped = False
+  r.is_read1 = True
+  r.cigarstring = '100M'
+  r.reference_id = 1
+  r.pos = 1
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 0
+  assert pos_c == 0
+  assert cigar_c == 1
+  assert d == creed.MAX_D_ERROR
+
+
+def analyze_read_test7():
+  """analyze read: check read with insertion"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|21|100|20S80=|1|201|100|100='
+  r.is_paired = True
+  r.is_read1 = True
+
+  r.cigarstring = '100M'
+  r.reference_id = 0
+  r.pos = 21
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
   assert chrom_c == 1
   assert pos_c == 1
   assert cigar_c == 0
+  assert d == 0
 
-  read = MyRead(qname=qname, secondary=False, paired=True, read1=True, unmapped=False, reference_id=14, pos=705, cigarstring='100I')
-  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped = creed.analyze_read(read, window=0, extended=False)
+  r.cigarstring = '20S80M'
+  r.reference_id = 0
+  r.pos = 10
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
   assert chrom_c == 1
   assert pos_c == 0
-  assert cigar_c == 0
+  assert cigar_c == 1
+  assert d == 11
 
 
+def analyze_read_test8():
+  """analyze read: check read with insertion in the middle"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|21|100|30=20I50=|1|201|100|100='
+  r.is_paired = True
+  r.is_read1 = True
 
-  # # Test if we can do fuzzy matching if we soft clips and so on
-  # qname = '3|15|0|0|100|1M1000D99M|1|200|100='
-  # read = MyRead(qname=qname, secondary=False, paired=True, read1=True, unmapped=False, reference_id=14, pos=180, cigarstring='1S99M')
-  # read_serial, chrom, cpy, ro, pos, cigar, read_category = creed.analyze_read(read, window=0, extended=False)
-  # assert read_category == 0b100100, bin(read_category)
+  r.cigarstring = '30M20I50M'
+  r.reference_id = 0
+  r.pos = 21
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
 
-
-# def create_sample_misaligned_bam(per_bam_fname):
-#   """Utility function to create a sample BAM with specific read errors. Return us the feature positions and the
-#   correct answers for the three types of read categories as creed.count_reads_under_features should return from
-#   this file and the feature positions. See sketch in test folder"""
-#
-#   feature_positions = [  # 0,1 = het 2 = hom
-#     (10, 20, 0), (70, 80, 2), (90, 91, 2), (110, 120, 1), (140, 141, 2), (150, 160, 1), (170, 180, 2), (210, 240, 0)]
-#
-#   # ((correct start, correct stop, aligned start, aligned stop),
-#   #  ( ... mate ...)), ...
-#
-#   read_positions = [
-#     [  # For copy 0
-#       ((15, 30, 15, 30),
-#        (40, 50, 45, 55)),
-#       ((55, 65, 55, 65),
-#        (75, 85, 75, 85)),
-#       ((75, 95, 75, 95),
-#        (100, 110, 200, 220)),
-#       ((100, 110, 150, 160),
-#        (120, 130, 120, 130)),
-#       ((135, 150, 135, 150)
-#        (160, 175, 160, 175)),
-#       ((145, 155, 145, 155),
-#        (165, 175, 165, 175)),
-#       ((195, 200, 195, 200),
-#        (215, 225, 230, 240),
-#        (230, 235, 230, 235))],  # Copy 0  ...
-#     [  # Copy 1
-#       ((15, 30, 15, 30),
-#        (40, 50, 40, 50)),
-#       ((55, 65, 55, 65),
-#        (75, 80, 75, 80)),
-#       ((85, 95, 85, 95),
-#        (105, 115, 105, 115)),
-#       ((152, 158, 152, 158),
-#        (172, 178, 172, 178))]  # Copy 1
-#   ]
-#
-#   import pysam
-#   bam_fp = pysam.AlignmentFile(per_bam_fname, 'wb')
-#   for r_pos in read_positions:
-#     r = pysam.AlignedSegment()
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
 
 
+def analyze_read_test9():
+  """analyze read: check read with insertion in the middle and position across the breakpoint"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|21|100|30=20I50=|1|201|100|100='
+  r.is_paired = True
+  r.is_read1 = True
+
+  r.cigarstring = '30M20I50M'
+  r.reference_id = 0
+  r.pos = 51
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
+
+  # Read placed a little off, verify d is correct
+  r.cigarstring = '30M20I50M'
+  r.reference_id = 0
+  r.pos = 61
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 0
+  assert d == 10
+
+
+def analyze_read_test10():
+  """analyze read: check read with deletion in the middle and position across the breakpoint"""
+  r = pysam.AlignedSegment()
+  r.qname = '1|1|0|0|21|100|30=20D70=|1|201|100|100='
+  r.is_paired = True
+  r.is_read1 = True
+
+  r.cigarstring = '30M20D70M'
+  r.reference_id = 0
+  r.pos = 21
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
+
+  r.cigarstring = '30M20D70M'
+  r.reference_id = 0
+  r.pos = 71
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 1
+  assert d == 0
+
+  r.cigarstring = '30M20D70M'
+  r.reference_id = 0
+  r.pos = 81
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 0
+  assert cigar_c == 1
+  assert d == 10

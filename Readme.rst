@@ -163,16 +163,18 @@ Please see the documentation for a comprehensive, step-by-step tutorial.
 
 Uploading to SBG docker repository
 ----------------------------------
-Use the following command to mount the Mitty directory (so we can run ``pip install .`` from the container::
+Use the following command to mount the Mitty directory (so we can run ``pip install`` from the container::
 
   docker run -ti -v /Users/kghose/Code/Mitty:/mountedcwd images.sbgenomics.com/kghosesbg/mitty:latest
+  pip install mountedcwd
+  nosetests mitty -v
 
-Make sure things worked
+Make sure things worked (after exiting from container)
 
   docker run --rm images.sbgenomics.com/kghosesbg/mitty:latest reads --version
 
 
-  docker commit 0459cf48f746 images.sbgenomics.com/kghosesbg/mitty:latest
+  docker commit <container id> images.sbgenomics.com/kghosesbg/mitty:latest
   docker push images.sbgenomics.com/kghosesbg/mitty:latest
 
 For matplotlib font::

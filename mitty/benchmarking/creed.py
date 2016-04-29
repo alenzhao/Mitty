@@ -7,22 +7,22 @@ import pyximport
 pyximport.install(setup_args={"include_dirs": numpy.get_include()})
 from creed_cython import *
 
-import h5py
-import numpy as np
-from pysam import AlignedSegment as pas
-
 from mitty.lib.reads import old_style_cigar
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-def analyze_read(read, window=100, extended=False):
-  """Given a read process the qname and read properties to determine the correct (CHROM, POS, CIGAR) and determine
-  what kind of alignment errors were made on it
+# First ensure this rewriting works - good unit tests, with longer dels/insertions
+# Then break this into smaller functions.
+# Then cythonize it.
+def analyze_read(read, extended=False):
+  """Given a read, process the qname and read properties to determine the correct (CHROM, POS, CIGAR) and determine
+  what kind of alignment errors were made on it.
 
   :param read: a psyam AlignedSegment object
-  :returns read_serial, chrom, cpy, ro, pos, cigar, chrom_c, pos_c, cigar_c, unmapped, t_start, t_end
+  :param extended: whether the
+  :returns read_serial, chrom, cpy, ro, pos, cigar, chrom_c, pos_c, cigar_c, unmapped
 
   read_serial = read_serial * 10 + 0 or 1 (for mate1 or mate2 of read) for paired reads
   read_serial = read_serial for un-paired reads
@@ -30,10 +30,10 @@ def analyze_read(read, window=100, extended=False):
   chrom_c, pos_c, cigar_c -> 1 if correct, 0 otherwise
   unmapped -> 1 if true
   """
-  early_exit_value = [None] * 15
+  early_exit_value = [None] * 16
 
-  # Not counted
-  if read.is_secondary:
+  # Don't count secondary, supplementary etc reads
+  if read.flag > 255:
     return early_exit_value
 
   ro_m, pos_m, rl_m, cigar_m = 0, 0, 0, ''  # These are the values passed in for unpaired reads
@@ -49,32 +49,52 @@ def analyze_read(read, window=100, extended=False):
     else:
       rs, chrom, cpy, ro, pos, rl, cigar = read.qname.split('|')[:7]
       read_serial = int(rs)
-    ro, chrom, cpy, pos, rl, pos_m, rl_m = int(ro), int(chrom), int(cpy), int(pos), int(rl), int(pos_m), int(rl_m)
+    ro, chrom, cpy, pos, rl, ro_m, pos_m, rl_m = int(ro), int(chrom), int(cpy), int(pos), int(rl), int(ro_m), int(pos_m), int(rl_m)
   except ValueError:
     msg = 'Error processing read: {}\n'.format(read)
     # msg += '\n'.join(['{}: {}'.format(d, getattr(read, d)) for d in dir(read) if not hasattr(getattr(read, d), '__call__')])
     logger.critical(msg)
     raise RuntimeError(msg)
 
-  chrom_c, pos_c, cigar_c, unmapped = 1, 1, 1, 0
+  chrom_c, pos_c, cigar_c, unmapped, d = 1, 1, 1, 0, MAX_D_ERROR
 
   if not extended:
     cigar = old_style_cigar(cigar)
+    cigar_m = old_style_cigar(cigar_m)
 
   if read.is_unmapped:
     unmapped = 1
-    chrom_c, pos_c = 0, 0  # These are wrong by definition
+    chrom_c, pos_c, cigar_c = 0, 0, 0  # These are wrong by definition
   else:
     if read.reference_id != chrom - 1:
       chrom_c, pos_c = 0, 0  # chrom wrong, so pos wrong too
-    else:
-      if check_read(read_pos=read.pos, read_cigar=read.cigarstring, correct_pos=pos, correct_cigar=cigar, window=window) != 0b000:
-        pos_c = 0
+    else:  # Analyze the correctness by checking each breakpoint
 
-    if read.cigarstring != cigar:  # TODO Use check read for this?
+      cigar_ops = read.cigartuples
+
+      # Corner case, our special cigar for indicating reads inside an insertion
+      # We use S or I for this
+      if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
+        d = read.pos - pos
+      else:  # Go through breakpoints
+        correct_pos = pos
+        d_list = []
+        for op, cnt in cigar_ops:
+          if op in [0, 7, 8]:  # M, =, X
+            d_list += [abs(read.pos - correct_pos)]
+            correct_pos += cnt
+          elif op == 2:  # D
+            correct_pos += cnt
+        d = min(d_list + [MAX_D_ERROR]) if chrom_c else MAX_D_ERROR
+
+      if d > 0: pos_c = 0
+
+    # This is a very strict checking of the CIGAR
+    # TODO: Make this more clever
+    if read.cigarstring != cigar:
       cigar_c = 0
 
-  return read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped
+  return read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d
 
 
 # TODO: Remove window parameter
