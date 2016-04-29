@@ -100,9 +100,13 @@ class ReadSimulator:
                          persistent=True)
 
     self.sample_name = params.get('sample_name', None)
-    if 'dbfile' in params['files'] or db_file is not None:
+    if ('dbfile' in params['files'] or db_file is not None) and self.sample_name is not None:
       pop_db_name = db_file or mitty.lib.rpath(base_dir, params['files']['dbfile'])
       self.pop = vr.Population(fname=pop_db_name, mode='r', in_memory=False)
+      if self.sample_name not in self.pop.get_sample_names():
+        msg = 'Sample {} not present in database'.format(self.sample_name)
+        logger.critical(msg)
+        raise RuntimeError(msg)
     else:
       self.pop = None
       logger.debug('Taking reads from reference')
