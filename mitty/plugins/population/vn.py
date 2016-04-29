@@ -1,19 +1,30 @@
-"""A population model that creates samples with more and more variants. Suitable for the aligner paper experiments
-^ = intersection
-E = subset
+"""
+DESCRIPTION:
 
-vx ^ v0 = v0
-vx ^ v1 = v0
-...
-vx ^ vn = v0
+The vn model was designed to generate one sample genome (S) and a series of graphs (G0, G1, ...)
 
-v0 E v1
-v1 E v2
-v2 E v3
-...
-v(n-1) E vn
+S has a fraction of variants not found in G0, G1 ... (novel variants)
+and the rest are found in G0 (and G1, G2 ...) (known variants).
 
-This plugin does not honor the site frequency spectrum model and ignores the original 'p' values
+In set notation:
+
+  S - G0 = S - G1| = S - G2 ... = novel variants
+  S & G0 = S & G1 ... = known variants
+
+  G0, G1, ... are designed like babushka dolls such that G0 is a subset of G1
+  G1 a subset of G2 and so on
+
+In set notation:
+
+  G0 < G1 < G2 ... (< standing for subset)
+
+WARNING:
+Though, technically, it is possible to use G0, G1 ... as 'samples' to generate reads
+this will be incorrect to do: G0, G1 may contain 'illegal' combinations of variations
+such as a deletion with a SNP in the middle of it because they represent population graphs.
+Such 'illegal' patterns lead to undefined behavior in the read generator.
+The best you can hope for is an explicit error message in case of such use.
+
 """
 import numpy as np
 from collections import OrderedDict
@@ -21,20 +32,31 @@ from collections import OrderedDict
 __example_param_text = """
 {
   "vn": {
-    "p_vx": 0.2,
-    "p_vn": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+    "p_S": 0.104,
+    "p_G": [0.1, 0.2, 0.3],
   }
 }
 """
 
-_description = __doc__ + '\nExample parameters:\n' + __example_param_text
+__param_hints__ = """
+PARAMETER SETTING HINTS:
+
+The plugin ignores any site frequency spectrum model you set.
+The density of the master list of variants derives directly from the variant model parameters.
+p_S governs what fraction of the master list goes into the sample S
+p_G values govern what fraction of the master list goes into the graphs G0, G1, ...
+One constraint is the p_S > p_G[0] and p_S - p_G[0] governs the number of novel variants in
+S that do not appear in G0, G1, G2, ...
+"""
+
+_description = __doc__ + '\nEXAMPLE PARAMETERS:\n' + __example_param_text + __param_hints__
 
 #_example_params = json.loads(__example_param_text)
 _example_params = eval(__example_param_text)
 
 
 class Model:
-  def __init__(self, p_S, p_G):
+  def __init__(self, p_S=0.104, p_G=[0.1, 0.2, 0.3]):
     """A population model that creates samples with more and more variants. Suitable for the aligner paper experiments
 
     :param p_S: probability value for S. Fraction of novel variants = p_S - p_G[0]
@@ -114,30 +136,7 @@ class Model:
         counts['{} - {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] - v_idx[i])]
         counts['{} & {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] & v_idx[i])]
 
-    rep = [
-      "The vn model was designed to generate one sample genome (S) and a series of graphs (G0, G1, ...)",
-      "",
-      "S has a fraction of variants not found in G0, G1 ... (novel variants)",
-      "and the rest are found in G0 (and G1, G2 ...) (known variants).",
-      "",
-      "In set notation:",
-      "|S - G0| = |S - G1| = |S - G2| ... = novel variants",
-      "|S & G0| = |S & G1| ... = known variants",
-      "",
-      "G0, G1, ... are designed like babushka dolls such that G0 is a subset of G1",
-      "G1 a subset of G2 and so on.",
-      "",
-      "In set notation:",
-      "G0 < G1 < G2 ... (< standing for subset)",
-      "",
-      "WARNING:",
-      "Though, technically, it is possible to use G0, G1 ... as 'samples' to generate reads",
-      "this will be incorrect to do: G0, G1 may contain 'illegal' combinations of variations",
-      "such as a deletion with a SNP in the middle of it because they represent population graphs.",
-      "Such 'illegal' patterns lead to undefined behavior in the read generator.",
-      "The best you can hope for is an explicit error message in case of such use.",
-      ""
-    ]
+    rep = [__doc__]
     rep += ['{:>10}  {}'.format('Set operation', 'Variant counts across chromosomes')]
     rep += [('{:>10}{:>12}' + '{:>10,}' * len(chr_list)).format('', 'All', *chr_list)]
     rep += [('{:>10} {:>12,}' + '{:>10,}' * len(v)).format('|{}|'.format(k), sum(v), *v) for k, v in counts.items()]
