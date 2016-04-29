@@ -3,9 +3,11 @@ from itertools import izip
 import re
 
 import numpy
+
 import pyximport
 pyximport.install(setup_args={"include_dirs": numpy.get_include()})
 from creed_cython import *
+from pysam import AlignedSegment
 
 from mitty.lib.reads import old_style_cigar
 
@@ -69,8 +71,9 @@ def analyze_read(read, extended=False):
     if read.reference_id != chrom - 1:
       chrom_c, pos_c = 0, 0  # chrom wrong, so pos wrong too
     else:  # Analyze the correctness by checking each breakpoint
-
-      cigar_ops = read.cigartuples
+      r = AlignedSegment()  # probably inefficient
+      r.cigarstring = cigar
+      cigar_ops = r.cigartuples
 
       # Corner case, our special cigar for indicating reads inside an insertion
       # We use S or I for this

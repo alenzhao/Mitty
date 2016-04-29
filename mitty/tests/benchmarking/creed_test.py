@@ -122,14 +122,14 @@ def analyze_read_test6():
 
   # Read 1 off by 10
   r.is_read1 = True
-  r.cigarstring = '100M'
+  r.cigarstring = '1M10D99M'
   r.reference_id = 0
   r.pos = 11
   read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
 
   assert chrom_c == 1
   assert pos_c == 0
-  assert cigar_c == 1
+  assert cigar_c == 0
   assert d == 10
 
   # Read 1 is unmapped
@@ -266,3 +266,21 @@ def analyze_read_test10():
   assert pos_c == 0
   assert cigar_c == 1
   assert d == 10
+
+
+def analyze_read_test11():
+  """analyze read: long deletion in middle pos across breakpoint"""
+  r = pysam.AlignedSegment()
+  r.qname = '716964|5|1|0|4465332|100|33=250D67=|1|4465985|100|100='
+  r.is_paired = True
+  r.is_read1 = True
+
+  r.cigarstring = '33S53M14S'
+  r.reference_id = 4
+  r.pos = 4465615
+  read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d = creed.analyze_read(r)
+
+  assert chrom_c == 1
+  assert pos_c == 1
+  assert cigar_c == 0
+  assert d == 0
