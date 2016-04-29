@@ -8,7 +8,7 @@ and the rest are found in G0 (and G1, G2 ...) (known variants).
 
 In set notation:
 
-  S - G0 = S - G1| = S - G2 ... = novel variants
+  S - G0 = S - G1 = S - G2 ... = novel variants
   S & G0 = S & G1 ... = known variants
 
   G0, G1, ... are designed like babushka dolls such that G0 is a subset of G1
@@ -136,8 +136,15 @@ class Model:
         counts['{} - {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] - v_idx[i])]
         counts['{} & {}'.format(v_list[0], v_list[i])] += [len(v_idx[0] & v_idx[i])]
 
-    rep = [__doc__]
-    rep += ['{:>10}  {}'.format('Set operation', 'Variant counts across chromosomes')]
-    rep += [('{:>10}{:>12}' + '{:>10,}' * len(chr_list)).format('', 'All', *chr_list)]
-    rep += [('{:>10} {:>12,}' + '{:>10,}' * len(v)).format('|{}|'.format(k), sum(v), *v) for k, v in counts.items()]
-    return '\n'.join(rep)
+    rep_str = __doc__
+    rep_str += "VARIANT COUNTS FOR THIS DB:\n\n"
+    row_format = "    " + "{:>12} " * (len(counts) + 1)
+    sep = "    " + "-" * 13 * (len(counts) + 1) + '\n'
+    rep_str += row_format.format("chrom", *["|{}|".format(k) for k in counts.keys()]) + '\n'
+    rep_str += sep
+    for n, chrom in enumerate(chr_list):
+      rep_str += row_format.format(chrom, *[cnts[n] for cnts in counts.values()]) + '\n'
+    rep_str += sep
+    rep_str += row_format.format("Total", *[sum(cnts) for cnts in counts.values()]) + '\n'
+
+    return rep_str
