@@ -90,10 +90,13 @@ Partial Changelog
 -----------------
 (Please see git commit log for detailed commentary)
 
+**1.48.3.dev0**
+  * vn model fixed
+  * read analysis fixed + many tests added
+
+
 **1.47.0.dev0**
   * SE read model implemented
-  *
-
 
 **1.46.0.dev0**
   * MQ plot improved
