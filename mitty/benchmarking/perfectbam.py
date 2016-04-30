@@ -45,6 +45,7 @@ YC  i    0 - CIGAR was wrong, 1 - CIGAR was correct
 XR  i    Aligned chromosome
 XP  i    Aligned pos
 XC  Z    Aligned CIGAR
+XM  i    Aligned Mapping Quality
 """
 
 
@@ -110,7 +111,8 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
                        ('YC', cigar_c, 'i'),
                        ('XR', read.reference_id, 'i'),
                        ('XP', read.pos, 'i'),
-                       ('XC', read.cigarstring or '', 'Z')])
+                       ('XC', read.cigarstring or '', 'Z'),
+                       ('XM', read.mapping_quality, 'i')])
 
     if read_is_misaligned and full_bad_bam:  # We need to check if the read was reverse complemented when it should have been and vv
       if new_read.is_reverse != ro:  # The complement is not consistent

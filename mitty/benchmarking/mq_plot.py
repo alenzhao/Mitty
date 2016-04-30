@@ -61,7 +61,7 @@ def bin_mq(perbam, p):
     n0 = progress_bar_update_interval
     tot_read_cnt = 0
     for tot_read_cnt, read in enumerate(bam_in_fp):
-      binned_mq[read.mapping_quality, read.get_tag('Xd')] += 1
+      binned_mq[read.get_tag('XM'), read.get_tag('Xd')] += 1
       n0 -= 1
       if n0 == 0:
         bar.update(progress_bar_update_interval)
