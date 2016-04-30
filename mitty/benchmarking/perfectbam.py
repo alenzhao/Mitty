@@ -89,7 +89,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
       new_read.is_paired = read.is_paired
       new_read.is_read1 = read.is_read1
       new_read.qname = read.qname
-      new_read.mapping_quality = read.mapping_quality
+      # new_read.mapping_quality = read.mapping_quality
 
     # File size note
     #For a file with 202999 reads (per_bam, condensed - perfectbam -v -v -p reads.bam):
@@ -126,6 +126,7 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
     new_read.reference_id = chrom - 1
     new_read.pos = pos
     new_read.cigarstring = cigar  # What if this is deep in an insert?
+    new_read.mapping_quality = 60  # Set high, these are perfect reads
 
     if read_is_misaligned or read_is_unmapped:
       bad_bam_fp.write(new_read)
