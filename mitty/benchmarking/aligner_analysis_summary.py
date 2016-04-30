@@ -74,7 +74,7 @@ __html_template__ = \
 
 @click.command()
 @click.argument('tool')
-@click.argument('sample')
+@click.option('--sample', default='Ref')
 @click.option('--graph', default='-')
 @click.option('--db-summary', default='-')
 @click.argument('mismatcsv', type=click.Path(exists=True))
@@ -126,6 +126,24 @@ def metadata_table(tool, sample, graph):
 
 def aligner_accuracy_summary_table(summaryjson):
   """Load the data in the summary.json file and convert it into an html table
+  "read_counts": {
+    "known": {
+      "DEL < 20 bp": 0,
+      "INS >= 20 bp": 0,
+      "DEL >= 20 bp": 0,
+      "SNP": 0,
+      "INS < 20 bp": 0
+    },
+    "novel": {
+      "DEL < 20 bp": 25116,
+      "INS >= 20 bp": 2714,
+      "DEL >= 20 bp": 0,
+      "SNP": 94043,
+      "INS < 20 bp": 24105
+    },
+    "ref": 1120220
+  },
+
   {
     "known": {
       "DEL < 20 bp": 0.0,
@@ -142,6 +160,8 @@ def aligner_accuracy_summary_table(summaryjson):
       "INS < 20 bp": 57.611608271398964
     },
     "ref": 93.741105267014063
+
+
   }"""
   data = json.load(open(summaryjson, 'r'))
   cols = ['DEL >= 20 bp', 'DEL < 20 bp', 'SNP', 'INS < 20 bp', 'INS >= 20 bp']
@@ -149,6 +169,8 @@ def aligner_accuracy_summary_table(summaryjson):
   html = []
 
   for k in sorted(data.keys()):
+    if k == 'read_counts': continue
+
     this_data = data[k]
 
     html += ['<b>{}</b>'.format(k)]
@@ -157,6 +179,15 @@ def aligner_accuracy_summary_table(summaryjson):
     html += ['<tr><td>Novel</td><td rowspan=2>{:3.2f}</td>'.format(this_data['ref'])] + ['<td>{:3.2f}</td>'.format(this_data['novel'][c]) for c in cols] + ['</tr>']
     html += ['<tr><td>Known</td>'] + ['<td>{:3.2f}</td>'.format(this_data['known'][c]) for c in cols] + ['</tr>']
     html += ["</table>"]
+
+  this_data = data['read_counts']
+
+  html += ['<b>Read Counts</b>']
+  html += ['<table class="accuracy">']
+  html += ['<tr><th width=100px></th><th width=60px>REF</th>'] + ['<th width=100px>{}</th>'.format(h) for h in cols] + ['</tr>']
+  html += ['<tr><td>Novel</td><td rowspan=2>{:,}</td>'.format(this_data['ref'])] + ['<td>{:,}</td>'.format(this_data['novel'][c]) for c in cols] + ['</tr>']
+  html += ['<tr><td>Known</td>'] + ['<td>{:,}</td>'.format(this_data['known'][c]) for c in cols] + ['</tr>']
+  html += ["</table>"]
 
   return html
 
