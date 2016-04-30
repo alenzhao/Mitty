@@ -40,11 +40,11 @@ def print_tags(ctx, param, value):
 @click.command()
 @click.argument('perbam', type=click.Path(exists=True))
 @click.argument('gdb', type=click.Path(exists=True))
-@click.argument('sample-name')
 @click.argument('indelbam', type=click.Path())
 @click.argument('indelpkl', type=click.Path())
 @click.argument('summaryjson', type=click.Path())
 @click.option('--indel-range', help='Maximum base pair count of indels we process', type=int, default=50)
+@click.option('--sample-name', help='Name of sample. Leave out for reference reads')
 @click.option('--graph-name', help='Name of graph used by aligner. Leave out for linear aligners')
 @click.option('-p', is_flag=True, help='Show progress bar')
 @click.option('-v', count=True, help='Verbosity level')
@@ -153,7 +153,22 @@ def summarize(alignment_data, error_tols=[0, 10, 100]):
   known_v_cnt = ad['known_v_r_cnt']
   novel_v_cnt = ad['novel_v_r_cnt']
 
-  stats = {}
+  # First fill in the read counts
+  stats = {
+    'read_counts': {
+      'ref': ad['ref_r_cnt'].sum(),
+      'known': {
+        'SNP': known_v_cnt[idx_snp].sum()
+      },
+      'novel': {
+        'SNP': novel_v_cnt[idx_snp].sum()
+      }
+    }
+  }
+  for k, r0, r1 in indel_categories:
+    indel_idx = np.where((r0 < v_len) & (v_len < r1))[0]
+    stats['read_counts']['known'][k] = known_v_cnt[indel_idx, :].sum()
+    stats['read_counts']['novel'][k] = novel_v_cnt[indel_idx, :].sum()
 
   for et in error_tols:
     ref_pc = ad['ref_r_cnt'][:et+1].sum() / float(ad['ref_r_cnt'].sum()) * 100

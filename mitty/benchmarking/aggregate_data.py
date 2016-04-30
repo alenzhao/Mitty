@@ -1,3 +1,4 @@
+"""Given a list of aligner analysis runs in a csv file, create a sqlite database of the data"""
 import cPickle
 import csv
 
@@ -21,8 +22,8 @@ logger = logging.getLogger(__name__)
 @click.option('--median-filter-size', default=0, help='Size of median filter window to smooth plots')
 @click.option('--title', help='Title', default='Aligner accuracy')
 def cli(incsv, outcsv, outhtml, indel_range, median_filter_size, title):
-  """csv -> indel-pkls -> plot
-                       -> csv file with data points (can be used for further plotting)
+  """csv (meta data, indel-pkls, badbams) -> sqlite db with summary data
+
   \b
   Given a csv file with a list of indel-pkl files + metadata generate an interactive plot
 
@@ -33,7 +34,8 @@ def cli(incsv, outcsv, outhtml, indel_range, median_filter_size, title):
   graph
   read-corrupted
   read-len
-  indel-pkl file name
+  badbam (file name)
+  indel-pkl (file name)
 
   The output csv contains the same initial columns followed by data columns with the indel size (or Ref)
   marked out in the header.

@@ -105,7 +105,7 @@ def slice_read_counts(rc, sl):
 #
 # Cython + types
 # 1014452 reads in 9.80s to do everythng
-def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name, graph_name=None):
+def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name=None, graph_name=None):
   """Setup features and prepare to iterate over the bam region. We expect in_bam to be an interator
   over reads from one chrom
 
@@ -130,9 +130,13 @@ def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name, graph_
   footprint_start, footprint_stop = master_list['pos'], master_list['stop']
   ref, alt = master_list['ref'], master_list['alt']
 
-  sample = pop.get_sample_variant_index_for_chromosome(chrom=chrom, sample_name=sample_name)
-  s_index, s_gt = sample['index'], sample['gt']
-  sample_size_1 = sample.size - 1
+  if sample_name is not None:
+    sample = pop.get_sample_variant_index_for_chromosome(chrom=chrom, sample_name=sample_name)
+    s_index, s_gt = sample['index'], sample['gt']
+    sample_size_1 = sample.size - 1
+  else:
+    s_index, s_gt = np.empty((0,), dtype='i4'), np.empty((0,), dtype='i1')
+    sample_size_1 = - 1
 
   if graph_name is not None:
     graph = pop.get_sample_variant_index_for_chromosome(chrom=chrom, sample_name=graph_name)
