@@ -78,7 +78,7 @@ def analyze_read(read, extended=False):
       # Corner case, our special cigar for indicating reads inside an insertion
       # We use S or I for this
       if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
-        d = min(read.pos - pos, MAX_D_ERROR)
+        d = min(abs(read.pos - pos), MAX_D_ERROR)
       else:  # Go through breakpoints
         correct_pos = pos
         d_list = []
