@@ -40,7 +40,7 @@ def cli(perbam, o, title, v, p):
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
-  plot_mq(bin_mq(perbam, p))
+  plot_mq(bin_mq(perbam, p), title=title)
   plt.savefig(o)
 
 
@@ -71,26 +71,40 @@ def bin_mq(perbam, p):
   return binned_mq
 
 
-def plot_mq(binned_mq):
+def plot_mq(binned_mq, title='MQ'):
   nullfmt = NullFormatter()
 
-  left, width = 0.1, 0.65
-  bottom, height = 0.1, 0.65
-  bottom_h = left_h = left + width + 0.02
+  # left, width = 0.1, 0.65
+  # bottom, height = 0.1, 0.65
+  # bottom_h = left_h = left + width + 0.02
+  #
+  # ax2d_pos = [left, bottom, width, height]
+  # read_cnt_hist_pos = [left + 0.2, bottom + 0.5, width - 0.4, height * 0.3]
+  # rect_histx = [left, bottom_h, width, 0.2]
+  # rect_histy = [left_h, bottom, 0.2, height]
 
-  ax2d_pos = [left, bottom, width, height]
-  rect_histx = [left, bottom_h, width, 0.2]
-  rect_histy = [left_h, bottom, 0.2, height]
+  l1, b1, w1, h1 = 0.1, 0.075, 0.64, 0.48
+  l2, w2 = l1 + w1 + 0.02, 0.2
+  b2 = b1 + h1 + 0.02
+  h2, h3 = 0.15, 0.2
+  b3 = b2 + h2 + 0.02
 
-  # start with a rectangular Figure
-  plt.figure(1, figsize=(8, 8))
+  ax2d_pos = [l1, b1, w1, h1]
+  read_cnt_hist_pos = [l1, b2, w1, h2]
+  frac_correct_vs_MQ_pos = [l1, b3, w1, h3]
+  d_vs_mean_MQ_pos = [l2, b1, w2, h1]
+
+  fig = plt.figure(1, figsize=(8, 8))
+  fig.suptitle(title)
 
   ax2d = plt.axes(ax2d_pos)
-  ax_margin_MQ = plt.axes(rect_histx)
-  ax_margin_d = plt.axes(rect_histy)
+  ax_read_cnt_hist = plt.axes(read_cnt_hist_pos)
+  ax_frac_correct_vs_MQ = plt.axes(frac_correct_vs_MQ_pos)
+  ax_d_vs_mean_MQ = plt.axes(d_vs_mean_MQ_pos)
 
-  ax_margin_MQ.xaxis.set_major_formatter(nullfmt)
-  ax_margin_d.yaxis.set_major_formatter(nullfmt)
+  ax_read_cnt_hist.xaxis.set_major_formatter(nullfmt)
+  ax_frac_correct_vs_MQ.xaxis.set_major_formatter(nullfmt)
+  ax_d_vs_mean_MQ.yaxis.set_major_formatter(nullfmt)
 
   mq_values = np.arange(256)
   mq_lim = (-3, binned_mq.sum(axis=1)[:-1].nonzero()[0][-1] + 3)
@@ -103,10 +117,16 @@ def plot_mq(binned_mq):
               cmap='gray_r')
   plt.setp(ax2d, xlim=mq_lim, ylim=d_lim, xlabel='MQ', ylabel='|d_error| (bp)')
 
-  ax_margin_MQ.plot(mq_values, binned_mq[:, :1].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='k', label='data')
-  ax_margin_MQ.plot(mq_values, 1 - 10.0**(-mq_values/10.0), color='k', linestyle=':', label=r'$10^\frac{-MQ}{10}$')
-  ax_margin_MQ.legend(loc='lower center')
-  plt.setp(ax_margin_MQ, xlim=mq_lim, ylim=[-0.1, 1.1], title='Frac. reads correctly aligned')
+  ax_frac_correct_vs_MQ.step(mq_values, binned_mq[:, :1].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='k', label='data')
+  ax_frac_correct_vs_MQ.plot(mq_values, 1 - 10.0**(-mq_values/10.0), color='k', linestyle=':', label=r'$10^\frac{-MQ}{10}$')
+  ax_frac_correct_vs_MQ.legend(loc='lower right')
+  plt.setp(ax_frac_correct_vs_MQ, xlim=mq_lim, ylim=[-0.1, 1.1], ylabel='Frac. reads\ncorrectly aligned')
+  ax_frac_correct_vs_MQ.yaxis.tick_right()
 
-  ax_margin_d.plot(np.dot(mq_values, binned_mq)/binned_mq.sum(axis=0).astype(float), d_values, 'ko')
-  plt.setp(ax_margin_d, ylim=d_lim, xlim=mq_lim, title='Mean MQ')
+  ax_read_cnt_hist.step(mq_values, binned_mq.sum(axis=1), color='k')
+  plt.setp(ax_read_cnt_hist, xlim=mq_lim, ylabel='Read counts', yscale='log')
+  ax_read_cnt_hist.yaxis.tick_right()
+  ax_read_cnt_hist.yaxis.grid(True)
+
+  ax_d_vs_mean_MQ.plot(np.dot(mq_values, binned_mq)/binned_mq.sum(axis=0).astype(float), d_values, 'k.')
+  plt.setp(ax_d_vs_mean_MQ, ylim=d_lim, xlim=mq_lim, xlabel='Mean MQ')
