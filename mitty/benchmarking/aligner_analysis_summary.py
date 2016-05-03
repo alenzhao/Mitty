@@ -76,7 +76,9 @@ __html_template__ = \
 @click.argument('tool')
 @click.option('--sample', default='Ref')
 @click.option('--graph', default='-')
-@click.option('--db-summary', default='-')
+@click.option('--db-summary', type=click.Path(exists=True))
+@click.option('--known-d-plot', type=click.Path(exists=True))
+@click.option('--novel-d-plot', type=click.Path(exists=True))
 @click.argument('mismatcsv', type=click.Path(exists=True))
 @click.argument('summaryjson', type=click.Path(exists=True))
 @click.argument('novelplot', type=click.Path(exists=True))
@@ -85,15 +87,19 @@ __html_template__ = \
 @click.argument('circleplot', type=click.Path(exists=True))
 @click.argument('matrixplot', type=click.Path(exists=True))
 @click.argument('htmlout', type=click.Path())
-def cli(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary, htmlout):
+def cli(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot,
+        db_summary, known_d_plot, novel_d_plot,
+        htmlout):
   """Collect all the bits and pieces of an aligner analysis and compact them together into a
   single page, static HTML file with all the figures embedded as b64 encoded data"""
   open(htmlout, 'w').write(
-    create_summary_page(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary)
+    create_summary_page(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot,
+                        db_summary, known_d_plot, novel_d_plot)
   )
 
 
-def create_summary_page(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot, db_summary):
+def create_summary_page(tool, sample, graph, mismatcsv, summaryjson, novelplot, knownplot, mqplot, circleplot, matrixplot,
+                        db_summary, known_d_plot, novel_d_plot):
   """."""
   title = "{} - Aligner report".format(tool)
 
@@ -102,7 +108,7 @@ def create_summary_page(tool, sample, graph, mismatcsv, summaryjson, novelplot, 
   html += ['<h3>Accuracy summary</h3>']
   html += aligner_accuracy_summary_table(summaryjson)
   html += ['<h3>Plots</h3>']
-  html += plots_table(novelplot, knownplot, mqplot, circleplot, matrixplot)
+  html += plots_table(novelplot, knownplot, known_d_plot, novel_d_plot, mqplot, circleplot, matrixplot)
   html += ['<h3>Alignment summary</h3>']
   html += misalignment_summary_table(mismatcsv)
 
@@ -192,11 +198,15 @@ def aligner_accuracy_summary_table(summaryjson):
   return html
 
 
-def plots_table(novelplot, knownplot, mqplot, circleplot, matrixplot):
+def plots_table(novelplot, knownplot, known_d_plot, novel_d_plot, mqplot, circleplot, matrixplot):
   html = ["<table>"]
-  html += ['<tr><th height=50px valign="bottom">{}</th></tr><tr><td>{}</td></tr>'.format(fn[0], embed_image(fn[1]))
-           for fn in [('Novel variants', novelplot), ('Known variants', knownplot), ('MQ', mqplot),
-                      ('Misalignments plot (Circle)', circleplot), ('Misalignments plot (Matrix)', matrixplot)]]
+  html += ['<tr><th height=50px valign="bottom">{}</th></tr><tr><td style="text-align: center; vertical-align: middle;">{}</td></tr>'.format(fn[0], embed_image(fn[1]))
+           for fn in [('Novel variants', novelplot), ('Known variants', knownplot),
+                      ('Novel variants |d| plot', novel_d_plot), ('Known variants |d| plot', known_d_plot),
+                      ('MQ', mqplot),
+                      ('Misalignments plot (Circle)', circleplot), ('Misalignments plot (Matrix)', matrixplot)]
+           if fn[1] is not None
+           ]
   html += ["</table>"]
   return html
 

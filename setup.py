@@ -37,6 +37,7 @@ setup(
                           'indelplot = mitty.benchmarking.indel_plot:cli',
                           #'aggregate-summary-report = mitty.benchmarking.aggregate_indel_plot:cli',
                           'mqplot = mitty.benchmarking.mq_plot:cli',
+                          'dplot = mitty.benchmarking.d_plot:cli',
                           'aligner-summary-report = mitty.benchmarking.aligner_analysis_summary:cli',
                           'vcf2pop = mitty.lib.vcf2pop:cli',
                           'bam2tfq = mitty.benchmarking.convert_bam_to_truth_fastq:cli',
