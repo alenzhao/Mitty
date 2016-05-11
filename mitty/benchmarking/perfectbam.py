@@ -77,7 +77,8 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
   analyze_read = creed.analyze_read
   tot_read_cnt, mis_read_cnt, skipped_read_cnt = 0, 0, 0
   for tot_read_cnt, read in enumerate(bam_in_fp):
-    read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, read_is_unmapped, d \
+    read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, \
+    chrom_c, pos_c, cigar_c, read_is_unmapped, d, long_insert, long_insert_m \
       = analyze_read(read, extended)
     if read_serial is None:  # Something wrong with this read.
       skipped_read_cnt += 1
@@ -122,8 +123,8 @@ def process_file(bam_in_fp, bad_bam_fp=None, per_bam_fp=None,
 
     new_read.is_reverse = ro
     new_read.mate_is_reverse = 1 - ro
-    new_read.is_unmapped = False
-    new_read.mate_is_unmapped = False  # Gotta check this - what if mate is deep in an insert?
+    new_read.is_unmapped = (long_insert == 1)
+    new_read.mate_is_unmapped = (long_insert_m == 1)
     new_read.pnext = pos_m
     new_read.reference_id = chrom - 1
     new_read.pos = pos

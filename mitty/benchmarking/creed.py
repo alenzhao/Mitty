@@ -32,13 +32,15 @@ def analyze_read(read, extended=False):
   chrom_c, pos_c, cigar_c -> 1 if correct, 0 otherwise
   unmapped -> 1 if true
   """
-  early_exit_value = [None] * 16
+  early_exit_value = [None] * 18
 
   # Don't count secondary, supplementary etc reads
   if read.flag > 255:
     return early_exit_value
 
   ro_m, pos_m, rl_m, cigar_m = 0, 0, 0, ''  # These are the values passed in for unpaired reads
+  long_insert, long_insert_m = 0, 0
+
   # We should never actually fail this, unless a tool messes badly with the qname
   try:
     #  'read_serial|chrom|copy|ro|pos|rlen|cigar|ro|pos|rlen|cigar'
@@ -64,6 +66,10 @@ def analyze_read(read, extended=False):
     cigar = old_style_cigar(cigar)
     cigar_m = old_style_cigar(cigar_m)
 
+  r = AlignedSegment()  # probably inefficient
+  r.cigarstring = cigar
+  cigar_ops = r.cigartuples
+
   if read.is_unmapped:
     unmapped = 1
     chrom_c, pos_c, cigar_c = 0, 0, 0  # These are wrong by definition
@@ -71,14 +77,11 @@ def analyze_read(read, extended=False):
     if read.reference_id != chrom - 1:
       chrom_c, pos_c = 0, 0  # chrom wrong, so pos wrong too
     else:  # Analyze the correctness by checking each breakpoint
-      r = AlignedSegment()  # probably inefficient
-      r.cigarstring = cigar
-      cigar_ops = r.cigartuples
-
       # Corner case, our special cigar for indicating reads inside an insertion
       # We use S or I for this
       if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
         d = min(abs(read.pos - pos), MAX_D_ERROR)
+        long_insert = 1
       else:  # Go through breakpoints
         correct_pos = pos
         d_list = []
@@ -97,7 +100,15 @@ def analyze_read(read, extended=False):
     if read.cigarstring != cigar:
       cigar_c = 0
 
-  return read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, chrom_c, pos_c, cigar_c, unmapped, d
+  if read.is_paired:
+    # We need to figure out if it's mate is similiarly in a long insertion
+    r.cigarstring = cigar_m
+    cigar_ops = r.cigartuples
+    if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
+      long_insert_m = 1
+
+  return read_serial, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m, \
+         chrom_c, pos_c, cigar_c, unmapped, d, long_insert, long_insert_m
 
 
 # TODO: Remove window parameter
