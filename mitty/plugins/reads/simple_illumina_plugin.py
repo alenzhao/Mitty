@@ -123,7 +123,9 @@ class Model(ReadModel):
     template_loc_rng, read_order_rng, template_len_rng, error_loc_rng, base_choice_rng, gc_bias_rng = mutil.initialize_rngs(seed, 6)
     template_locs = template_loc_rng.randint(start_base, end_base + 1, size=template_cnt)
     template_lens = (template_len_rng.randn(template_locs.shape[0]) * self.template_len_sd + self.template_len_mean).astype('i4')
-    idx = ((template_locs + template_lens < end_base) & (template_lens > self.read_len)).nonzero()[0]
+    template_ends = template_locs + template_lens
+    idx = ((template_ends < end_base) & (template_lens > self.read_len)).nonzero()[0]
+    idx = [i for i in idx if seq[template_locs[i]] != 'N' and seq[template_ends[i]] != 'N']  # Filter out N rich regions
     template_locs, template_lens = template_locs[idx], template_lens[idx]
     if self.gc_bias is not None:
       template_locs, template_lens = self.gc_bias_reads(template_locs, template_lens, seq, gc_bias_rng)
@@ -181,7 +183,7 @@ class Model(ReadModel):
       offset += idx[n].size
 
 
-def self_test():
+def test1():
   """Basic self test"""
   import string
   DNA_complement = string.maketrans('ATCGN', 'TAGCN')
@@ -191,6 +193,21 @@ def self_test():
   rd, paired = mdl.get_reads(seq, seq_c, start_base=0, end_base=len(seq), coverage=.00001, corrupt=True)
   assert type(rd) == np.core.records.recarray  # Basically, the previous code should just run
   assert paired == True
+
+
+def test2():
+  """Reads starting end ending with Ns are skipped"""
+  import string
+  DNA_complement = string.maketrans('ATCGN', 'TAGCN')
+  seq = 'ATGTCGCCGGGCGCCATGNNNNNNNNNNNNNNNNNNNNNNNNNNNNCGTGCACCACCCANNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNACCCCAACTCCAGACCACCGGTCGTCCCTCGCATGAAGCCCCCAACATGACCCAGACCGGCACCACCGACTCTCCCACCGCCATCAGCCTTACCACGCCCGACCACACACCCCCCATGCCAAGTATCGGACTGGAGGAGGAGGAAGAGGAGGAGGGGGCCGGGGATGGCGAACATCTTGAGGGGGGAGATGGGACCCGTGACACCCTACCCCAGTCCCCGGGTCCAGCCGTCCCGTTGGCCGGGGATGACGAGAAGGACAAACCCAACCGTCCCGTAGTCCCACCCCCCGGTCCCAACAACTCCCCCGCGCGCCCCGAGACCAGTCGACCGAAGACACCCCCCACCAGTATCGGGCCGCTGGCAACTCGACCCACGACCCAACTCCCCTCAAAGGGGCGACCCTTGGTTCCGACGCCTCAACATACCCCGCTGTTCTCGTTCCTCACTGCCTCCCCCGCCCTGGACACCCTCTTCGTCGTCAGCACCGTCATCCACACCTTATCGTTTTTGTGTATTGTTGCGATGGCGACACACCTGG'
+  seq_c = string.translate(seq, DNA_complement)
+  mdl = Model(4, 8, 2, max_p_error=1)
+  rd, paired = mdl.get_reads(seq, seq_c, start_base=0, end_base=len(seq), coverage=.1, corrupt=False)
+  assert type(rd) == np.core.records.recarray  # Basically, the previous code should just run
+  assert rd.size > 0
+  for r in rd:
+    assert r['perfect_reads'][0] != 'N'
+    assert r['perfect_reads'][-1] != 'N'
 
 if __name__ == "__main__":
   print _description
