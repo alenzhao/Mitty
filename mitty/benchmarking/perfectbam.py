@@ -38,7 +38,7 @@ Zc  i    0 - read comes from chrom copy 0, 1 - read comes from chrom copy 1
 ZE  i    Read stop (Read start is in POS)
 Ze  i    Mate stop (Mate start is available from other BAM info)
 Xf  i    0 - incorrectly mapped, 1 - correctly mapped, 2 - unmapped
-Xd  i    [0, MAX_D_ERROR] absolute distance in bp to correct alignment
+Xd  i    [-MAX_D_ERROR, MAX_D_ERROR] distance in bp to correct alignment
 YR  i    0 - chrom was wrong, 1 - chrom was correct
 YP  i    0 - pos was wrong, 1 - pos was correct
 YC  i    0 - CIGAR was wrong, 1 - CIGAR was correct

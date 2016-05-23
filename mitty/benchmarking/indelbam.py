@@ -156,25 +156,25 @@ def summarize(alignment_data, error_tols=[0, 10, 100]):
   # First fill in the read counts
   stats = {
     'read_counts': {
-      'ref': ad['ref_r_cnt'].sum(),
+      'ref': int(ad['ref_r_cnt'].sum()),
       'known': {
-        'SNP': known_v_cnt[idx_snp].sum()
+        'SNP': int(known_v_cnt[idx_snp].sum())
       },
       'novel': {
-        'SNP': novel_v_cnt[idx_snp].sum()
+        'SNP': int(novel_v_cnt[idx_snp].sum())
       }
     }
   }
   for k, r0, r1 in indel_categories:
     indel_idx = np.where((r0 < v_len) & (v_len < r1))[0]
-    stats['read_counts']['known'][k] = known_v_cnt[indel_idx, :].sum()
-    stats['read_counts']['novel'][k] = novel_v_cnt[indel_idx, :].sum()
+    stats['read_counts']['known'][k] = int(known_v_cnt[indel_idx, :].sum())
+    stats['read_counts']['novel'][k] = int(novel_v_cnt[indel_idx, :].sum())
 
   for et in error_tols:
-    ref_pc = ad['ref_r_cnt'][:et+1].sum() / float(ad['ref_r_cnt'].sum()) * 100
+    ref_pc = ad['ref_r_cnt'][creed.MAX_D_ERROR - et:creed.MAX_D_ERROR + et + 1].sum() / float(ad['ref_r_cnt'].sum()) * 100
 
-    known_snp_pc = known_v_cnt[idx_snp][:et+1].sum() / float(known_v_cnt[idx_snp].sum() or 1) * 100
-    novel_snp_pc = novel_v_cnt[idx_snp][:et+1].sum() / float(novel_v_cnt[idx_snp].sum() or 1) * 100
+    known_snp_pc = known_v_cnt[idx_snp][creed.MAX_D_ERROR - et:creed.MAX_D_ERROR + et + 1].sum() / float(known_v_cnt[idx_snp].sum() or 1) * 100
+    novel_snp_pc = novel_v_cnt[idx_snp][creed.MAX_D_ERROR - et:creed.MAX_D_ERROR + et + 1].sum() / float(novel_v_cnt[idx_snp].sum() or 1) * 100
 
     these_stats = {
       'ref': ref_pc,
@@ -187,8 +187,8 @@ def summarize(alignment_data, error_tols=[0, 10, 100]):
     }
     for k, r0, r1 in indel_categories:
       indel_idx = np.where((r0 < v_len) & (v_len < r1))[0]
-      these_stats['known'][k] = known_v_cnt[indel_idx, :et+1].sum() / float(known_v_cnt[indel_idx, :].sum() or 1) * 100
-      these_stats['novel'][k] = novel_v_cnt[indel_idx, :et+1].sum() / float(novel_v_cnt[indel_idx, :].sum() or 1) * 100
+      these_stats['known'][k] = known_v_cnt[indel_idx, creed.MAX_D_ERROR - et:creed.MAX_D_ERROR + et + 1].sum() / float(known_v_cnt[indel_idx, :].sum() or 1) * 100
+      these_stats['novel'][k] = novel_v_cnt[indel_idx, creed.MAX_D_ERROR - et:creed.MAX_D_ERROR + et + 1].sum() / float(novel_v_cnt[indel_idx, :].sum() or 1) * 100
 
     stats['d_error <= {} bp'.format(et)] = these_stats
 

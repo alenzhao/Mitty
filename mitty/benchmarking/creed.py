@@ -60,7 +60,7 @@ def analyze_read(read, extended=False):
     logger.critical(msg)
     raise RuntimeError(msg)
 
-  chrom_c, pos_c, cigar_c, unmapped, d = 1, 1, 1, 0, MAX_D_ERROR
+  chrom_c, pos_c, cigar_c, unmapped, d = 1, 1, 1, 0, MAX_D_ERROR + 1  # MAX_D_ERROR + 1 => wrong chrom or unmapped
 
   if not extended:
     cigar = old_style_cigar(cigar)
@@ -80,20 +80,22 @@ def analyze_read(read, extended=False):
       # Corner case, our special cigar for indicating reads inside an insertion
       # We use S or I for this
       if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
-        d = min(abs(read.pos - pos), MAX_D_ERROR)
+        d = max(min(read.pos - pos, MAX_D_ERROR), -MAX_D_ERROR)
         long_insert = 1
       else:  # Go through breakpoints
         correct_pos = pos
-        d_list = []
+        d = read.pos - correct_pos
         for op, cnt in cigar_ops:
           if op in [0, 7, 8]:  # M, =, X
-            d_list += [abs(read.pos - correct_pos)]
+            this_d = read.pos - correct_pos
+            if abs(this_d) < abs(d):
+              d = this_d
             correct_pos += cnt
           elif op == 2:  # D
             correct_pos += cnt
-        d = min(d_list + [MAX_D_ERROR]) if chrom_c else MAX_D_ERROR
+        d = max(min(d, MAX_D_ERROR), -MAX_D_ERROR)
 
-      if d > 0: pos_c = 0
+      if abs(d) > 0: pos_c = 0
 
     # This is a very strict checking of the CIGAR
     # TODO: Make this more clever

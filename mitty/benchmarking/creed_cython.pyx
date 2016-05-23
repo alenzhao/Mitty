@@ -49,9 +49,9 @@ cdef find_variants_over_read(int[:] s_window, int[:] g_window,
 
 cdef struct ReadCounts:
   int indel_range
-  np.int32_t[:] v_len, novel_v_cnt, known_v_cnt
-  np.int32_t[:] ref_r_cnt, ref_MQ_sum
-  np.int32_t[:, :] novel_v_r_cnt, novel_v_MQ_sum, known_v_r_cnt, known_v_MQ_sum
+  np.int32_t[:] v_len
+  np.uint32_t[:] novel_v_cnt, known_v_cnt, ref_r_cnt, ref_MQ_sum
+  np.uint32_t[:, :] novel_v_r_cnt, novel_v_MQ_sum, known_v_r_cnt, known_v_MQ_sum
 
 
 def init_read_counts(indel_range):
@@ -60,18 +60,18 @@ def init_read_counts(indel_range):
   rc.indel_range = indel_range
 
   rc.v_len = np.arange(-indel_range, indel_range + 1, dtype=np.int32)
-  rc.novel_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.int32)
-  rc.known_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.int32)
+  rc.novel_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.uint32)
+  rc.known_v_cnt = np.zeros(2 * indel_range + 1, dtype=np.uint32)
 
-  rc.ref_r_cnt = np.zeros(MAX_D_ERROR + 1, dtype=np.int32)
-  rc.ref_MQ_sum = np.zeros(MAX_D_ERROR + 1, dtype=np.int32)
+  rc.ref_r_cnt = np.zeros(2 * MAX_D_ERROR + 2, dtype=np.uint32)
+  rc.ref_MQ_sum = np.zeros(2 * MAX_D_ERROR + 2, dtype=np.uint32)
 
   # Dimensions are: indel_size, d_error
-  rc.novel_v_r_cnt = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
-  rc.novel_v_MQ_sum = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+  rc.novel_v_r_cnt = np.zeros((2 * indel_range + 1, 2 * MAX_D_ERROR + 2), dtype=np.uint32)
+  rc.novel_v_MQ_sum = np.zeros((2 * indel_range + 1, 2 * MAX_D_ERROR + 2), dtype=np.uint32)
 
-  rc.known_v_r_cnt = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
-  rc.known_v_MQ_sum = np.zeros((2 * indel_range + 1, MAX_D_ERROR + 1), dtype=np.int32)
+  rc.known_v_r_cnt = np.zeros((2 * indel_range + 1, 2 * MAX_D_ERROR + 2), dtype=np.uint32)
+  rc.known_v_MQ_sum = np.zeros((2 * indel_range + 1, 2 * MAX_D_ERROR + 2), dtype=np.uint32)
 
   return rc
 
@@ -172,7 +172,7 @@ def read_assigner_iterator(in_bam, pop, chrom, read_counter, sample_name=None, g
       r.set_tag('Z0', [_v[0] for _v in sample_vars])
       r.set_tag('Z1', [_v[1] for _v in sample_vars])
 
-    update_read_counter(read_counter, r.get_tag('Xd'), r.mapq, sample_vars)
+    update_read_counter(read_counter, r.get_tag('Xd'), r.get_tag('XM'), sample_vars)
 
     yield r
 
@@ -187,12 +187,12 @@ cdef update_read_counter(ReadCounts rc, int d_e, int mq, sample_vars):
         idx = vs + rc.indel_range
         if vf == 1:
           rc.novel_v_cnt[idx] += 1
-          rc.novel_v_r_cnt[idx, d_e] += 1
-          rc.novel_v_MQ_sum[idx, d_e] += mq
+          rc.novel_v_r_cnt[idx, MAX_D_ERROR + d_e] += 1
+          rc.novel_v_MQ_sum[idx, MAX_D_ERROR + d_e] += mq
         elif vf == 2:
           rc.known_v_cnt[idx] += 1
-          rc.known_v_r_cnt[idx, d_e] += 1
-          rc.known_v_MQ_sum[idx, d_e] += mq
+          rc.known_v_r_cnt[idx, MAX_D_ERROR + d_e] += 1
+          rc.known_v_MQ_sum[idx, MAX_D_ERROR + d_e] += mq
   else:
-    rc.ref_r_cnt[d_e] += 1
-    rc.ref_MQ_sum[d_e] += mq
+    rc.ref_r_cnt[MAX_D_ERROR + d_e] += 1
+    rc.ref_MQ_sum[MAX_D_ERROR + d_e] += mq

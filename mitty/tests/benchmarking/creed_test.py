@@ -140,7 +140,7 @@ def analyze_read_test6():
   assert chrom_c == 0
   assert pos_c == 0
   assert cigar_c == 0
-  assert d == creed.MAX_D_ERROR
+  assert d == creed.MAX_D_ERROR + 1
 
   # Read 1 on wrong chrom
   r.is_unmapped = False
@@ -153,7 +153,7 @@ def analyze_read_test6():
   assert chrom_c == 0
   assert pos_c == 0
   assert cigar_c == 1
-  assert d == creed.MAX_D_ERROR
+  assert d == creed.MAX_D_ERROR + 1
 
 
 def analyze_read_test7():
@@ -181,7 +181,7 @@ def analyze_read_test7():
   assert chrom_c == 1
   assert pos_c == 0
   assert cigar_c == 1
-  assert d == 11
+  assert d == -11
 
 
 def analyze_read_test8():

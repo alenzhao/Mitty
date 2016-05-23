@@ -173,7 +173,7 @@ def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=0.5, ax={}, 
 
   rc = read_counts
 
-  v_pc = rc['v_r_cnt'][:, :d_error_cat[1] + 1].sum(axis=1) / rc['v_r_cnt'].sum(axis=1).astype(float) * 100
+  v_pc = rc['v_r_cnt'][:, creed.MAX_D_ERROR - d_error_cat[1]:creed.MAX_D_ERROR + d_error_cat[1] + 1].sum(axis=1) / rc['v_r_cnt'].sum(axis=1).astype(float) * 100
   sm_v_pc = ss.medfilt(np.ma.masked_invalid(v_pc), kernel_size=kernel_size) if kernel_size > 2 else v_pc
 
   # Indels
@@ -189,7 +189,7 @@ def plot_alignment_accuracy(read_counts, d_error_cat, color='k', lw=0.5, ax={}, 
   ax['A-REF/SNP'].plot(x, y, color=color, marker='_', lw=1.5, alpha=0.71)
 
   # ref reads
-  ref_pc = rc['ref_r_cnt'][:d_error_cat[1] + 1].sum() / float(rc['ref_r_cnt'].sum()) * 100
+  ref_pc = rc['ref_r_cnt'][creed.MAX_D_ERROR - d_error_cat[1]:creed.MAX_D_ERROR + d_error_cat[1] + 1].sum() / float(rc['ref_r_cnt'].sum()) * 100
   ax['A-REF/SNP'].plot(-0.5, ref_pc, color=color, marker='o', ms=2, mec=color, alpha=0.71)
   ax['A-REF/SNP'].plot(-0.5, ref_pc, color=color, marker='_', lw=1.5, alpha=0.71)
 

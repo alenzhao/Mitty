@@ -53,7 +53,7 @@ def bin_mq(perbam, p):
   """
   t0 = time.time()
   bam_in_fp = pysam.AlignmentFile(perbam, 'rb')
-  binned_mq = np.zeros((256, MAX_D_ERROR + 1), dtype=int)
+  binned_mq = np.zeros((256, 2 * MAX_D_ERROR + 2), dtype=int)
   total_read_count = bam_in_fp.mapped + bam_in_fp.unmapped  # Sadly, this is only approximate
   progress_bar_update_interval = int(0.01 * total_read_count)
   with click.progressbar(length=total_read_count, label='Reading BAM',
@@ -61,7 +61,7 @@ def bin_mq(perbam, p):
     n0 = progress_bar_update_interval
     tot_read_cnt = 0
     for tot_read_cnt, read in enumerate(bam_in_fp):
-      binned_mq[read.get_tag('XM'), read.get_tag('Xd')] += 1
+      binned_mq[read.get_tag('XM'), MAX_D_ERROR + read.get_tag('Xd')] += 1
       n0 -= 1
       if n0 == 0:
         bar.update(progress_bar_update_interval)
@@ -109,24 +109,29 @@ def plot_mq(binned_mq, title='MQ'):
   mq_values = np.arange(256)
   mq_lim = (-3, binned_mq.sum(axis=1)[:-1].nonzero()[0][-1] + 3)
 
-  d_values = np.arange(MAX_D_ERROR + 1)
-  d_lim = (-10, MAX_D_ERROR + 10)
+  d_values = np.arange(-MAX_D_ERROR, MAX_D_ERROR + 1)
+  d_lim = (-MAX_D_ERROR - 10, MAX_D_ERROR + 10)
 
-  ax2d.pcolor(mq_values, d_values, binned_mq.T,
+  ax2d.pcolor(mq_values, d_values, binned_mq[:,:-1].T,
               norm=LogNorm(vmin=1, vmax=binned_mq.max()),
               cmap='gray_r')
-  plt.setp(ax2d, xlim=mq_lim, ylim=d_lim, xlabel='MQ', ylabel='|d_error| (bp)')
+  plt.setp(ax2d, xlim=mq_lim, ylim=d_lim, xlabel='MQ', ylabel=r'$d_{error}$(bp)')
 
-  ax_frac_correct_vs_MQ.step(mq_values, binned_mq[:, :1].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='k', label='data')
+  ax_frac_correct_vs_MQ.step(mq_values, binned_mq[:, MAX_D_ERROR] / binned_mq.sum(axis=1).astype(float), color='k', label='d=0')
+  ax_frac_correct_vs_MQ.step(mq_values, binned_mq[:, MAX_D_ERROR - 100:MAX_D_ERROR + 100].sum(axis=1) / binned_mq.sum(axis=1).astype(float), color='r', label='|d| < 100')
+
   ax_frac_correct_vs_MQ.plot(mq_values, 1 - 10.0**(-mq_values/10.0), color='k', linestyle=':', label=r'$10^\frac{-MQ}{10}$')
   ax_frac_correct_vs_MQ.legend(loc='lower right')
   plt.setp(ax_frac_correct_vs_MQ, xlim=mq_lim, ylim=[-0.1, 1.1], ylabel='Frac. reads\ncorrectly aligned')
   ax_frac_correct_vs_MQ.yaxis.tick_right()
 
-  ax_read_cnt_hist.step(mq_values, binned_mq.sum(axis=1), color='k')
-  plt.setp(ax_read_cnt_hist, xlim=mq_lim, ylabel='Read counts', yscale='log')
+  cum_rds = binned_mq[:,:-1].sum(axis=1).cumsum()
+  ax_read_cnt_hist.step(mq_values, cum_rds, color='gray', lw=2)
+  rds = binned_mq[:,:-1].sum(axis=1)
+  ax_read_cnt_hist.step(mq_values, rds, color='k')
+  plt.setp(ax_read_cnt_hist, xlim=mq_lim, ylim=(rds.min()/5., 5 * cum_rds.max()), ylabel='Read counts', yscale='log')
   ax_read_cnt_hist.yaxis.tick_right()
   ax_read_cnt_hist.yaxis.grid(True)
 
-  ax_d_vs_mean_MQ.plot(np.dot(mq_values, binned_mq)/binned_mq.sum(axis=0).astype(float), d_values, 'k.')
+  ax_d_vs_mean_MQ.plot(np.dot(mq_values, binned_mq[:, :-1])/binned_mq[:, :-1].sum(axis=0).astype(float), d_values, 'k.')
   plt.setp(ax_d_vs_mean_MQ, ylim=d_lim, xlim=mq_lim, xlabel='Mean MQ')
