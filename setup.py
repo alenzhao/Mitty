@@ -36,6 +36,7 @@ setup(
                           #'alindel = mitty.benchmarking.indel_alignment_accuracy:cli',
                           'indelplot = mitty.benchmarking.indel_plot:cli',
                           #'aggregate-summary-report = mitty.benchmarking.aggregate_indel_plot:cli',
+                          # 'aggregate-aligner-data = mitty.benchmarking.aggregate_aligner_data:cli',
                           'mqplot = mitty.benchmarking.mq_plot:cli',
                           'dplot = mitty.benchmarking.d_plot:cli',
                           'aligner-summary-report = mitty.benchmarking.aligner_analysis_summary:cli',
@@ -60,6 +61,6 @@ setup(
       'h5py>=2.5.0',
       'matplotlib>=1.3.0',
       'scipy',
-      #'plotly'
+      'pandas'
     ],
 )
