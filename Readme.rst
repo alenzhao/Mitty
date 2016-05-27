@@ -152,7 +152,7 @@ Go into ``/docs`` and type ``make html`` or ``make latexpdf`` etc. (use ``make``
 
 
 Creating wheels
-...............
+---------------
 ::
 
     pip install wheel  # If needed
