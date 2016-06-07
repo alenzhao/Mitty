@@ -23,7 +23,11 @@ Input is a csv file with every row as follows
   variant caller task url
 """
 import csv
+import StringIO
+import base64
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import click
 import numpy as np
@@ -61,10 +65,6 @@ def vc_leaderboard(incsv, outcsv, outhtml):
   \b
 
   Create an html webpage Leaderboard that arranges aligners by VC performance.
-  There are multiple leader boards generated based on the different metadata criteria
-  In the current case they are:
-
-    corruption (x2), variant caller (x3) and graph (x4)
 
   input csv file columns are
 
@@ -80,23 +80,27 @@ def vc_leaderboard(incsv, outcsv, outhtml):
   aligner_analysis task url
   variant caller task url
 
-  The output data frame contains this data combined together.
+  The output data frame is saved as a CSV and contains this data combined together.
+
+  See http://cruncher-new:8888/notebooks/kghose/LeaderBoard/data_analysis_example.ipynb#
+  for how to analyse the data
+
   """
   in_data = [{k.strip(): v.strip() for k, v in row.items()} for row in csv.DictReader(open(incsv, 'r'))]
   fname_list = [row['eval_csv_path'] for row in in_data]
   meta_row = in_data
   pan = combine_evaluation_csvs(fname_list, meta_row)
   pan.to_csv(outcsv)
+  # Read back with:
+  # pan = pd.read_csv('aggregated-vc-data-2016-06-03T13-41-16.227566.csv', index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
 
   with open(outhtml, 'w') as fp:
-    fp.write(nicely_formatted_leader_board(leader_board(pan).to_html()))
-
+    fp.write(html_leaderboard(pan))
 
 
 def combine_evaluation_csvs(fname_list, meta_row):
   data = [pr_by_variant_type(load_evaluation_csv(fname)) for fname in fname_list]
   index_tuples = [tuple([meta[key] for key in __metadata_keys__]) for meta in meta_row]
-  #return pd.concat(data, axis=0, keys=index_tuples, names=__metadata_keys__)
   return pd.DataFrame(data, index=pd.MultiIndex.from_tuples(index_tuples, names=__metadata_keys__))
 
 
@@ -124,37 +128,16 @@ def pr_by_variant_type(df):
   return new_df.T.unstack()
 
 
-def default_scoring_function(df):
-  """This simply takes the mean F number across all indel categories and ranks the runs accordingly."""
-  return df.xs('F', level=1, axis=1).mean(axis=1).sort_values(ascending=False)
-
-
-def leader_board(df, scoring_fun=None, criteria=None):
-  """Given a data frame, a scoring function and a set of criteria, organize the data frame to show us the aligner names
-  and metrics sorted according to the scoring function
-
-
-  :param df:  data frame
-  :param scoring_fun: function that takes in a data frame and returns a ranking of rows
-                      see the default scoring function for an example
-  :param criteria:
-  :return:
-  """
-  #return df.reindex(df.xs('F', level=1, axis=1).mean(axis=1).sort_values(ascending=False).index)
-  scoring_fun = scoring_fun or default_scoring_function
-  return df.reindex(scoring_fun(df).index).T
-
-
-def nicely_formatted_leader_board(html_table):
-  """Given the raw table from Pandas combine it with a style sheet. Remember to set the class to be leaderboard"""
-  top = """<!DOCTYPE html>
+html_header = """
+<!DOCTYPE html>
 <html>
 <head>
 <style>
   body {
    font-family: Gill Sans, sans-serif;
-   padding-left: 100px;
-   padding-right: 100px;
+   font-size: 9pt;
+   padding-left: 20px;
+   padding-right: 20px;
   }
 
   table {
@@ -166,39 +149,60 @@ def nicely_formatted_leader_board(html_table):
       padding: 8px;
       text-align: left;
       border-bottom: 1px solid #ddd;
+      border-left: 1px solid #ddd;
   }
 </style>
 </head>
 <body>
-
-<h2>Aligner/Caller leaderboard</h2>
 """
-  bottom = """
-<b>The leaderboard rank is based on the average F value across all variant classes</b>
-</body>
-</html>"""
-  return top + html_table + bottom
+
+html_footer = """</body>"""
 
 
-def plot_me():
-  f = 2 * pr[:,0] * pr[:,1]/(pr[:,0] + pr[:,1])
-  plt.plot(pr[:,0], pr[:,1], 'b')
-  plt.plot(pr[:3,0], pr[:3,1], 'ko', ms=10)
-  plt.plot(pr[3,0], pr[3,1], 'ks', ms=10)
-  plt.plot(pr[4:,0], pr[4:,1], 'k+', ms=10)
-  plt.axis('scaled')
-  plt.show()
+def html_leaderboard(pan):
+  """This is a set of plots organized as a nested table"""
+  html = []
+  for caller in ['SBG-JB', 'GATK-3.5', 'FB']:
+    html += create_table_for_one_caller(pan, caller)
+
+  return html_header + '\n'.join(html) + html_footer
 
 
+def create_table_for_one_caller(pan, caller='SBG-JB'):
+  graphs = ['None', 'S', 'G0', 'G1']
+  variant_classes = ['SNP', 'I1_5', 'D1_5', 'I6_15', 'D6_15', 'I16_PLUS', 'D16_PLUS']
+
+  html = ['<h2>Caller: {}</h2>'.format(caller)]
+  html += ['<table>']
+  html += ['<tr>'] + ['<th></th>'] + ['<th colspan=2>graph={}</th>'.format(g) for g in graphs] + ['</tr>']
+  html += ['<tr>'] + ['<th>Variant<br>Class</th>'] + ['<th>corrupt={}</th>'.format(c) for g in graphs for c in ['No', 'Yes']] + ['</tr>']
+  for variant_class in variant_classes:
+    html += ['<tr>'] + ['<th>{}</th>'.format(variant_class)]
+    for graph in graphs:
+      for corrupt in ['No', 'Yes']:
+        html += ['<td>{}</td>'.format(draw_pr_plot(pan, caller, graph, corrupt, variant_class))]
+  html += ['</table>']
+  return html
 
 
+def draw_pr_plot(pan, caller, graph, corrupt, variant_class):
+  this_slice = {
+    'key': (1, 'S', graph, corrupt, 100, 500, caller),
+    'level': ('run', 'sample', 'graph', 'corrupt', 'read_len', 'template_len', 'caller')}
 
-def pr_computation(df):
-  """Given the df from a variant calling run, compute the P/R for the different categories available."""
-  x = df  # .xs('SNP', level='Type')
-  p = x['TRUTH.TP'] / (x['TRUTH.TP'] + x['QUERY.FP'])
-  r = x['TRUTH.TP'] / (x['TRUTH.TP'] + x['TRUTH.FN'])
-  f = 2 * p * r / (p + r)
+  fig = plt.figure(figsize=(4,8))
+  fig.subplots_adjust(bottom=0.25, right=0.99, top=0.90)
+  ax = fig.add_subplot(111)
+
+  pan.xs(**this_slice)[variant_class].sort_index(ascending=False).ix[:, :'Recall'].plot(ax=ax, rot=90, lw=4, style='o-')
+  plt.title('Graph: {}\nVariant: {}\nCorrupt: {}'.format(graph, variant_class, corrupt))
+
+  imgdata = StringIO.StringIO()
+  plt.savefig(imgdata, format='png')
+  imgdata.seek(0)  # rewind the data
+  plt.close()
+
+  return '<img src="data:image/png;base64,{}" width="200px"></img>'.format(base64.b64encode(imgdata.buf))
 
 
 if __name__ == '__main__':
