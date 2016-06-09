@@ -32,7 +32,7 @@ def load_data():
 
 def setup_axes():
   fig = plt.figure(figsize=(12, 8))
-  fig.subplots_adjust(bottom=0.05, left=0.1, right=0.99, top=0.99, hspace=0.2, wspace=0.05)
+  fig.subplots_adjust(bottom=0.05, left=0.1, right=0.99, top=0.98, hspace=0.3, wspace=0.05)
 
   ax = {}
   ax['aligner'] = plt.subplot2grid((2, 5), (0, 0), colspan=3)
@@ -63,6 +63,24 @@ def setup_index_order(pr_data):
   }
 
 
+def get_xp_slice(df, slice_dict, this_slice_key, s_index):
+  """
+
+  :param df:
+  :param slice_dict: {k: v} pairs indicating the center of the slice e.g.
+                     {'run': 1, 'sample': 'S', .... }
+  :param this_slice_key: key of the dimension we are expanding here
+  :param s_index: the index sorted the way we want
+  :return: a data frame with just this slice
+  """
+  keys = slice_dict.keys()
+  this_slice = {
+    'key': tuple([slice_dict[k] for k in keys if k != this_slice_key]),
+    'level': tuple([k for k in keys if k != this_slice_key])
+  }
+  return df.xs(**this_slice).reindex(s_index).ix[:, :'Recall']
+
+
 def xy_slice(df, slice_dict, this_slice_key, s_index, ax, **plot_kwargs):
   """Plot the data frame using the given slice
 
@@ -81,7 +99,7 @@ def xy_slice(df, slice_dict, this_slice_key, s_index, ax, **plot_kwargs):
     'key': tuple([slice_dict[k] for k in keys if k != this_slice_key]),
     'level': tuple([k for k in keys if k != this_slice_key])
   }
-  df.xs(**this_slice).reindex(s_index).ix[:, :'Recall'].plot(ax=ax, xlim=(-0.5, len(s_index) - 0.5), **plot_kwargs)
+  df.xs(**this_slice).reindex(s_index).ix[:, :'Recall'].plot(ax=ax, fontsize=9, xlim=(-0.5, len(s_index) - 0.5), **plot_kwargs)
   ax.axvline(s_index.get_loc(slice_dict[this_slice_key]), color='r', linestyle='--', lw=2)
 
 
@@ -134,4 +152,4 @@ class DataExplorer:
     # print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
     #       (event.button, event.x, event.y, event.xdata, event.ydata))
 
-de = DataExplorer('hi')
+#de = DataExplorer('hi')
