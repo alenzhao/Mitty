@@ -92,7 +92,9 @@ def vc_leaderboard(incsv, outcsv, outhtml):
   pan = combine_evaluation_csvs(fname_list, meta_row)
   pan.to_csv(outcsv)
   # Read back with:
-  # pan = pd.read_csv('aggregated-vc-data-2016-06-03T13-41-16.227566.csv', index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
+  #pan = pd.read_csv('aggregated-vc-data-2016-06-03T13-41-16.227566.csv', index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
+  pan = pd.read_csv(outcsv, index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
+  # Hillariously, this is the cleanest way to handle strings and floats/ints
 
   with open(outhtml, 'w') as fp:
     fp.write(html_leaderboard(pan))
@@ -194,7 +196,12 @@ def draw_pr_plot(pan, caller, graph, corrupt, variant_class):
   fig.subplots_adjust(bottom=0.25, right=0.99, top=0.90)
   ax = fig.add_subplot(111)
 
-  pan.xs(**this_slice)[variant_class].sort_index(ascending=False).ix[:, :'Recall'].plot(ax=ax, rot=90, lw=4, style='o-')
+  try:
+    pan.xs(**this_slice)[variant_class].sort_index(ascending=False).ix[:, :'Recall'].plot(ax=ax, rot=90, lw=4, style='o-')
+  except (KeyError, TypeError):
+    plt.text(0, 0, "NO DATA")
+    plt.setp(ax, xlim=(-0.1, 0.6), ylim=(-0.1, 0.6))
+
   plt.title('Graph: {}\nVariant: {}\nCorrupt: {}'.format(graph, variant_class, corrupt))
 
   imgdata = StringIO.StringIO()
