@@ -17,8 +17,9 @@ import matplotlib.pyplot as plt
 # import matplotlib.gridspec as gridspec
 
 
-def load_data():
-  pan = pd.read_csv('/Users/kghose/TestData/variant-calling/aggregated-vc-data-2016-06-03T13-41-16.227566.csv', index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
+def load_data(fname):
+  #pan = pd.read_csv('/Users/kghose/TestData/variant-calling/aggregated-vc-data-2016-06-03T13-41-16.227566.csv', index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
+  pan = pd.read_csv(fname, index_col=[0, 1, 2, 3, 4, 5, 6, 7], skipinitialspace=True, header=[0,1])
   df = pan.stack(0)[['Precision', 'Recall']]
   i2 = df.index
   names = list(i2.names)
@@ -99,7 +100,9 @@ def xy_slice(df, slice_dict, this_slice_key, s_index, ax, **plot_kwargs):
     'key': tuple([slice_dict[k] for k in keys if k != this_slice_key]),
     'level': tuple([k for k in keys if k != this_slice_key])
   }
-  df.xs(**this_slice).reindex(s_index).ix[:, :'Recall'].plot(ax=ax, fontsize=9, xlim=(-0.5, len(s_index) - 0.5), **plot_kwargs)
+  sl = df.xs(**this_slice).reindex(s_index).ix[:, :'Recall']
+  sl.plot(ax=ax, fontsize=9, xlim=(-0.5, len(s_index) - 0.5), xticks=range(len(s_index)), **plot_kwargs)
+  #df.xs(**this_slice).reindex(s_index).ix[:, :'Recall'].plot(ax=ax, fontsize=9, **plot_kwargs)
   ax.axvline(s_index.get_loc(slice_dict[this_slice_key]), color='r', linestyle='--', lw=2)
 
 
@@ -110,7 +113,7 @@ def plot_panel(pr_data, sl_d, ax, io, pl_args):
 
 class DataExplorer:
   def __init__(self, fname):
-    self.pr_data = load_data()
+    self.pr_data = load_data(fname)
 
     # The starting slice
     self.sl_d = {
