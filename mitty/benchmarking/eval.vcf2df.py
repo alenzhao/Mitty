@@ -7,12 +7,24 @@ import click
 import pandas as pd
 
 
-@click.command()
+@click.group()
+def cli():
+  pass
+#  parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+
+
+@cli.command('convert')
 @click.argument('evalvcf')
 @click.argument('outcsv')
-# @click.option('--block-size', default=5000)
-def cli(evalvcf, outcsv):
+def convert_evcf(evalvcf, outcsv):
+  """Convert an eval vcf from vcfeval to a dataframe."""
   parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+
+
+def set_operations_evcf(csvA, csvB):
+  pass
+
+
 
 
 
@@ -81,14 +93,21 @@ def read_evcf_into_dataframe(fname):
 #   QUERY                                 .:.:.:.:NOCALL:nocall
 
 
-def parse_call_column(val):
-  """TP, FP, FN"""
-  if val['TRUTH'][0] == '.':
-    return 'FP'
-  elif val['QUERY'][0] == '.':
-    return 'FN'
-  else:
-    return 'TP'
+# column splitting from http://www.swegler.com/becky/blog/2014/08/06/useful-pandas-snippets/
+def parse_call_column(evcf):
+  """Returns multiple columns:
+  ROC_thresh, truth, truthGT, query, queryGT
+
+  """
+  #_fmt, _truth, _query = evcf['FORMAT'], evcf['TRUTH'], evcf['QUERY']
+
+  def parse(row):
+    keys = row['FORMAT'].split(':')
+    tv = {k: v for k, v in zip(keys, row['TRUTH'].split(':'))}
+    qv = {k: v for k, v in zip(keys, row['QUERY'].split(':'))}
+    return qv.get('QQ', None), tv['BD'], tv['GT'], qv['BD'], tv['GT']
+
+  return zip(*evcf.apply(parse, axis=1))
 
 
 def variant_size(val):
@@ -96,14 +115,17 @@ def variant_size(val):
 
 
 def parse_evcf(evcf):
+  # from IPython import embed; embed()
+  # exit()
+
   df = pd.DataFrame()
   df['chrom'] = evcf['#CHROM']
   df['pos'] = evcf['POS']
   df['ref'] = evcf['REF']
   df['alt'] = evcf['ALT']
-  df['call'] = evcf.apply(parse_call_column, axis=1)
+  df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
   df['variant_category'] = evcf.apply(variant_size, axis=1)
-  return df
+  return df.set_index(['chrom', 'pos', 'ref', 'alt'])
 
 if __name__ == '__main__':
   cli()
