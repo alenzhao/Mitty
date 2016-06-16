@@ -10,7 +10,6 @@ import pandas as pd
 @click.group()
 def cli():
   pass
-#  parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
 
 
 @cli.command('convert')
@@ -21,10 +20,25 @@ def convert_evcf(evalvcf, outcsv):
   parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
 
 
-def set_operations_evcf(csvA, csvB):
-  pass
+@cli.command('compare')
+@click.argument('file_a')
+@click.argument('file_b')
+@click.argument('file_a_and_b')
+@click.argument('file_a_only')
+@click.argument('file_b_only')
+def set_operations_evcf(file_a, file_b, file_a_and_b, file_a_only, file_b_only):
+  """Perform intersection and difference operations on the variant calls."""
+  dfA = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt'])
+  dfB = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt'])
 
+  # Intersect
+  dfA[dfA.index.isin(dfB.index)].to_csv(file_a_and_b, compression='gzip' if file_a_and_b.endswith('gz') else None)
 
+  # A - B
+  dfA[~dfA.index.isin(dfB.index)].to_csv(file_a_only, compression='gzip' if file_a_only.endswith('gz') else None)
+
+  # B - A
+  dfB[~dfB.index.isin(dfA.index)].to_csv(file_b_only, compression='gzip' if file_b_only.endswith('gz') else None)
 
 
 
@@ -99,8 +113,6 @@ def parse_call_column(evcf):
   ROC_thresh, truth, truthGT, query, queryGT
 
   """
-  #_fmt, _truth, _query = evcf['FORMAT'], evcf['TRUTH'], evcf['QUERY']
-
   def parse(row):
     keys = row['FORMAT'].split(':')
     tv = {k: v for k, v in zip(keys, row['TRUTH'].split(':'))}
@@ -125,7 +137,7 @@ def parse_evcf(evcf):
   df['alt'] = evcf['ALT']
   df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
   df['variant_category'] = evcf.apply(variant_size, axis=1)
-  return df.set_index(['chrom', 'pos', 'ref', 'alt'])
+  return df
 
 if __name__ == '__main__':
   cli()
