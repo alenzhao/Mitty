@@ -136,7 +136,8 @@ def parse_evcf(evcf):
   df['ref'] = evcf['REF']
   df['alt'] = evcf['ALT']
   df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
-  df['variant_category'] = evcf.apply(variant_size, axis=1)
+  df['variant_size'] = evcf.apply(variant_size, axis=1)
+  df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
   return df
 
 if __name__ == '__main__':
