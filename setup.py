@@ -29,6 +29,9 @@ setup(
       # Command line scripts
       'console_scripts': ['genomes = mitty.genomes:cli',
                           'reads = mitty.reads:cli',
+                          #'god-aligner = mitty.benchmarking.god_aligner:cli',
+                          'evalvcf2df = mitty.benchmarking.evalvcf2df:cli',
+                          'reads2calls = mitty.benchmarking.reads2calls:cli',
                           'perfectbam = mitty.benchmarking.perfectbam:cli',
                           'mismat = mitty.benchmarking.mismat:cli',
                           'indelbam = mitty.benchmarking.indelbam:cli',
