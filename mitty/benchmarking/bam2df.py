@@ -11,7 +11,7 @@ python ~/Code/Mitty/mitty/benchmarking/bam2df.py qname-run00001.S.pe.100x500.per
 import logging
 import time
 from multiprocessing import Pool
-import itertools
+import subprocess
 
 import click
 import pysam
@@ -65,15 +65,17 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, v):
 
 def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
   """Header is in 'tmp_hdr.csv' partials are in tmp_1.csv, tmp_2.csv ...."""
+  prefix = 'temp_bam2df'
 
   columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
 
   # Write header
-  with open('tmp_hdr.csv', 'w') as out_fp:
+  hdr_fname = prefix + '_hdr.csv'
+  with open(hdr_fname, 'w') as out_fp:
     out_fp.write(','.join(columns) + '\n')
 
   offsets = break_bam(qnamesortedbam, block_size)
-  fnames = ['tmp_{}.csv'.format(n) for n in range(len(offsets))]
+  fnames = [prefix + '_{}.csv'.format(n) for n in range(len(offsets))]
 
   p = Pool(4)
   t_total = 0
@@ -83,6 +85,12 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
     t1 = time.time()
     t_total += block_size
     logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+  # This will only work on unix like systems
+  with open(out_csv, 'w') as fp:
+    subprocess.call(['cat', hdr_fname] + fnames, stdout=fp)
+
+  subprocess.call(['rm', prefix + '*.csv'])
 
 
 def break_bam(qnamesortedbam, block_size):
@@ -126,7 +134,7 @@ def process_bam_section(args):
 
 def get_read_pairs(fp, block_size):
   for cnt, r1 in enumerate(fp):
-    if cnt > block_size:
+    if cnt == block_size:
       break
     r2 = next(fp)
     yield (r1, r2)
