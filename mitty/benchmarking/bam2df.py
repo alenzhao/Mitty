@@ -2,6 +2,11 @@
 correct position and tags.
 
 Continuous writing from http://stackoverflow.com/questions/31090127/pandas-continuously-write-from-function-to-csv
+
+
+python ~/Code/Mitty/mitty/benchmarking/bam2df.py qname-run00001.S.pe.100x500.perfect.g-G1.t-0.8.17.bam bam.csv -v
+
+
 """
 import logging
 import time
@@ -60,9 +65,7 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, v):
   logger.warning('This code only works for paired end simulated files ...')
   logger.warning('It is trvial to convert it to work for data with no qname information and SE')
 
-  process_bam_parallel(qnamesortedbam, outcsv)
-
-
+  process_bam_parallel3(qnamesortedbam, outcsv)
 
 # for cnt, r1 in enumerate(fp):
 #   r2 = next(fp)
@@ -103,14 +106,14 @@ def process_bam(qnamesortedbam, out_csv, block_size=10000):
 # accessing a bam-file through the same instance of a Samfile object
 # from multiple threads/processes.
 
-def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
+def process_bam_parallel2(qnamesortedbam, out_csv, block_size=10000):
   out_fp = open(out_csv, 'w')
 
   columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
   out_fp.write(','.join(columns) + '\n')
 
   t_total = 0
-  p = Pool(4)
+  p = Pool(8)
   t0 = time.time()
   for df_rows in p.imap(
     process_bam_section,
@@ -121,12 +124,73 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
     logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
 
 
+def process_bam_parallel3(qnamesortedbam, out_csv, block_size=100000):
+  # out_fp = open(out_csv, 'w')
+  #
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  # out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  # p = Pool(2)
+  t0 = time.time()
+  offsets = [off for off in get_bam_sections(qnamesortedbam, block_size)]
+  t1 = time.time()
+  logger.debug('Pass 1: Find points to split BAM {} sec to run through BAM'.format(t1 - t0))
+
+
+  # for df_rows in p.imap(
+  #   process_bam_section,
+  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+  # for df_rows in itertools.imap(
+  #   process_bam_section,
+  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+def process_bam_parallel(qnamesortedbam, out_csv, block_size=1000):
+  out_fp = open(out_csv, 'w')
+
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  p = Pool()
+
+  fp = pysam.AlignmentFile(qnamesortedbam)
+
+  t0 = time.time()
+  for rp_l in get_read_pairs_in_blocks(fp, block_size):
+    df_rows = p.map(parse_pair, rp_l, chunksize=block_size/4)
+    # df_rows = map(parse_pair, rp_l)
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+  # for df_rows in p.imap_unordered(process_pairs, (rpp for rpp in get_read_pairs_in_blocks(fp, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
 def get_bam_sections(qnamesortedbam, block_size):
   fp = pysam.AlignmentFile(qnamesortedbam)
   for cnt, _ in enumerate(fp):
     next(fp)
     if cnt % block_size == 0:
+      logger.debug('fp {}: {} reads'.format(fp.tell(), cnt))
       yield fp.tell()
+
+
 
 
 # args = qnamesortedbam, template_start, template_end
@@ -137,12 +201,35 @@ def process_bam_section(args):
   return [parse_pair(r1r2) for r1r2 in get_read_pairs(fp, block_size)]
 
 
+def get_all_read_pairs(fp):
+  for r1 in fp:
+    r2 = next(fp)
+    yield tuple([r1, r2])
+
+
 def get_read_pairs(fp, block_size):
   for cnt, r1 in enumerate(fp):
     if cnt > block_size:
       break
     r2 = next(fp)
     yield (r1, r2)
+
+
+def get_read_pairs_in_blocks(fp, block_size):
+  rpp = []
+  for cnt, r1 in enumerate(fp):
+    r2 = next(fp)
+    rpp += [(r1, r2)]
+    if (cnt + 1) % block_size == 0:
+      yield rpp
+      rpp = []
+
+  yield rpp
+
+
+
+def process_pairs(r1r2_g):
+  return [parse_pair(r1r2) for r1r2 in r1r2_g]
 
 
 def parse_pair(r1r2):
