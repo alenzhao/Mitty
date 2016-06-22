@@ -50,9 +50,10 @@ gral_tags = [
 @click.argument('outcsv')
 @click.option('--paired-reads/--single-end-reads', default=True, help='Are these paired end or single end reads')
 @click.option('--simulated-reads/--real-reads', default=True, help='Are these simulated from Mitty? If so, parse qnames for truth positions')
-@click.option('--block-size', default=10000, help='Block size')
+@click.option('--block-size', default=100000, help='Block size')
+@click.option('-t', default=4, help='Threads')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, v):
+def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, t, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -60,10 +61,10 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, v):
   logger.warning('This code only works for paired end simulated files ...')
   logger.warning('It is trvial to convert it to work for data with no qname information and SE')
 
-  process_bam_parallel(qnamesortedbam, outcsv, block_size)
+  process_bam_parallel(qnamesortedbam, outcsv, block_size, threads=t)
 
 
-def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
+def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000, threads=4):
   """Header is in 'tmp_hdr.csv' partials are in tmp_1.csv, tmp_2.csv ...."""
   prefix = 'temp_bam2df'
 
@@ -77,7 +78,7 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
   offsets = break_bam(qnamesortedbam, block_size)
   fnames = [prefix + '_{}.csv'.format(n) for n in range(len(offsets))]
 
-  p = Pool(4)
+  p = Pool(threads)
   t_total = 0
   t0 = time.time()
   for fn in p.imap_unordered(process_bam_section, [(qnamesortedbam, off, fn, block_size) for off, fn in zip(offsets, fnames)]):
@@ -90,7 +91,7 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
   with open(out_csv, 'w') as fp:
     subprocess.call(['cat', hdr_fname] + fnames, stdout=fp)
 
-  subprocess.call(['rm', prefix + '*.csv'])
+  subprocess.call('rm {}*.csv'.format(prefix), shell=True)
 
 
 def break_bam(qnamesortedbam, block_size):
@@ -115,9 +116,6 @@ def get_bam_sections(qnamesortedbam, block_size):
     next(fp)
     if cnt % block_size == 0:
       yield fp.tell()
-
-    if cnt > 50000:
-      break
 
 
 # args = qnamesortedbam, template_start, template_end
