@@ -1,10 +1,14 @@
 """Reads in an eval.vcf and turns it into a data frame"""
 # http://stackoverflow.com/questions/31090127/pandas-continuously-write-from-function-to-csv
-
+import logging
 import gzip
+import time
 
 import click
 import pandas as pd
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -15,9 +19,14 @@ def cli():
 @cli.command('convert')
 @click.argument('evalvcf')
 @click.argument('outcsv')
-def convert_evcf(evalvcf, outcsv):
+@click.option('-v', count=True, help='Verbosity level')
+def convert_evcf(evalvcf, outcsv, v):
   """Convert an eval vcf from vcfeval to a dataframe."""
-  parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+  #parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+  level = logging.DEBUG if v > 0 else logging.WARNING
+  logging.basicConfig(level=level)
+
+  read_evcf_into_dataframe(evalvcf).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
 
 
 @cli.command('compare')
@@ -41,16 +50,6 @@ def set_operations_evcf(file_a, file_b, file_a_and_b, file_a_only, file_b_only):
   dfB[~dfB.index.isin(dfA.index)].to_csv(file_b_only, compression='gzip' if file_b_only.endswith('gz') else None)
 
 
-
-  # from IPython import embed; embed()
-  # read_evcf_into_dataframe(evalvcf).to_csv(out_csv, index=False)
-
-  # for cols in fastq_reader_ip(fname, block_size):
-  #   df = pd.DataFrame(cols,
-  #                     columns=['serial', 'qname', 'chrom', 'phase', 'strand', 'pos', 'rlen', 'cigar'])
-  #   df.to_csv(out_csv, mode='a', index=False)
-
-
 def get_header_row_count_for_vcf(fname):
   with gzip.open(fname) as fp:
     for cnt, line in enumerate(fp):
@@ -59,10 +58,57 @@ def get_header_row_count_for_vcf(fname):
   return None
 
 
+def get_contig_dict(fname):
+  seq_dict = {}
+  seq_cntr = 1
+  with gzip.open(fname) as fp:
+    for line in fp:
+      if line.startswith('##contig=<ID'):
+        x = line.split(',', 1)
+        seq_dict[x[0][13:]] = seq_cntr
+        seq_cntr += 1
+      if not line.startswith('##'):
+        break
+  return seq_dict
+
+
 def read_evcf_into_dataframe(fname):
+
+  t0 = time.time()
   hdr_cnt = get_header_row_count_for_vcf(fname)
-  evcf = pd.read_csv(fname, skiprows=hdr_cnt, sep='\t', compression='gzip', engine='c')
-  return evcf
+  seq_dict = get_contig_dict(fname)
+  evcf = pd.read_csv(fname, dtype={'#CHROM': 'S10'}, skiprows=hdr_cnt, sep='\t', compression='gzip', engine='c')
+  t1 = time.time()
+  logger.debug('Loaded eval csv into basic data frame ({:0.3} s) ({} rows)'.format(t1 - t0, len(evcf)))
+
+  df = pd.DataFrame()
+  df['chrom'] = evcf['#CHROM']
+  df['pos'] = evcf['POS']
+  df['ref'] = evcf['REF']
+  df['alt'] = evcf['ALT']
+  t2 = time.time()
+  logger.debug('Copied selected columns ({:0.3} s)'.format((t2 - t1)))
+
+  df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
+  t3 = time.time()
+  logger.debug('Parsed call columns using format string ({:0.3} s)'.format((t3 - t2)))
+
+  df['variant_size'] = evcf.apply(variant_size, axis=1)
+  t4 = time.time()
+  logger.debug('Computed variant size ({:0.3} s)'.format((t4 - t3)))
+
+  # df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
+  evcf['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
+  evcf['int_chrom'] = evcf.apply(lambda row: seq_dict[row['#CHROM']], axis=1)
+  t5 = time.time()
+  logger.debug('Converted alphanumeric chrom code to integer seq_id ({:0.3} s)'.format((t5 - t4)))
+
+  df['v_p1'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['POS'], axis=1)
+  df['v_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1)
+  t6 = time.time()
+  logger.debug('Computed compressed coordinates ({:0.3} s)'.format((t6 - t5)))
+
+  return df
 
 
 # TP:
@@ -125,20 +171,6 @@ def parse_call_column(evcf):
 def variant_size(val):
   return len(val['ALT']) - len(val['REF'])
 
-
-def parse_evcf(evcf):
-  # from IPython import embed; embed()
-  # exit()
-
-  df = pd.DataFrame()
-  df['chrom'] = evcf['#CHROM']
-  df['pos'] = evcf['POS']
-  df['ref'] = evcf['REF']
-  df['alt'] = evcf['ALT']
-  df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
-  df['variant_size'] = evcf.apply(variant_size, axis=1)
-  df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
-  return df
 
 if __name__ == '__main__':
   cli()
