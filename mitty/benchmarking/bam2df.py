@@ -50,136 +50,55 @@ gral_tags = [
 @click.argument('outcsv')
 @click.option('--paired-reads/--single-end-reads', default=True, help='Are these paired end or single end reads')
 @click.option('--simulated-reads/--real-reads', default=True, help='Are these simulated from Mitty? If so, parse qnames for truth positions')
+@click.option('--block-size', default=10000, help='Block size')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, v):
+def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, v):
   """Associate reads in a BAM with variant calls."""
-  # print(alignerbam)
-  # print(evalvcfdf)
-  # print(outcsv)
-  # print(paired_reads)
-  # print(simulated_reads)
-
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
   logger.warning('This code only works for paired end simulated files ...')
   logger.warning('It is trvial to convert it to work for data with no qname information and SE')
 
-  process_bam_parallel3(qnamesortedbam, outcsv)
-
-# for cnt, r1 in enumerate(fp):
-#   r2 = next(fp)
-#
-#    assert r1.qname == r2.qname
-#    r_d = [parse_qname(r1), parse_qname(r2)]
-#    df_rows.append([r1.qname] + [str(r_dd.get(k, '')) for r_dd in r_d for k in read_info + gral_tags])
-##   out_fp.write(','.join([r1.qname] + [str(r_dd.get(k, '')) for r_dd in r_d for k in read_info + gral_tags]) + '\n')
-  # for r1r2 in get_read_pairs(fp):
-  #   df_rows.append(parse_pair(r1r2))
+  process_bam_parallel(qnamesortedbam, outcsv, block_size)
 
 
-def process_bam(qnamesortedbam, out_csv, block_size=10000):
-  out_fp = open(out_csv, 'w')
+def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
+  """Header is in 'tmp_hdr.csv' partials are in tmp_1.csv, tmp_2.csv ...."""
 
   columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
-  out_fp.write(','.join(columns) + '\n')
 
+  # Write header
+  with open('tmp_hdr.csv', 'w') as out_fp:
+    out_fp.write(','.join(columns) + '\n')
+
+  offsets = break_bam(qnamesortedbam, block_size)
+  fnames = ['tmp_{}.csv'.format(n) for n in range(len(offsets))]
+
+  p = Pool(4)
   t_total = 0
   t0 = time.time()
-  for offset in get_bam_sections(qnamesortedbam, block_size):
-    df_rows = process_bam_section((qnamesortedbam, offset, block_size))
-    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  for fn in p.imap_unordered(process_bam_section, [(qnamesortedbam, off, fn, block_size) for off, fn in zip(offsets, fnames)]):
+    print fn
     t1 = time.time()
     t_total += block_size
     logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
 
 
-# https://groups.google.com/forum/#!topic/pysam-user-group/bBdqn7DkVtE
-# Using the multiprocessing module should work, but to be on the safe
-# side, open a separate file for read access in each worker
-# process. That is, instead of passing an instance of Samfile to a
-# subprocess, pass the filename instead and create a new samfile =
-# Samfile( ) in the function that is run in parallel.
-#
-# There are definitely side-effects when multi-threading and
-# possibly ones when multi-processing. Generally it is best to avoid
-# accessing a bam-file through the same instance of a Samfile object
-# from multiple threads/processes.
+def break_bam(qnamesortedbam, block_size):
+  """Go through the BAM and mark-off the offsets,
 
-def process_bam_parallel2(qnamesortedbam, out_csv, block_size=10000):
-  out_fp = open(out_csv, 'w')
-
-  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
-  out_fp.write(','.join(columns) + '\n')
-
+  :param qnamesortedbam:
+  :param block_size:
+  :return:
+  """
   t_total = 0
-  p = Pool(8)
-  t0 = time.time()
-  for df_rows in p.imap(
-    process_bam_section,
-    ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
-    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-    t1 = time.time()
-    t_total += block_size
-    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
-
-
-def process_bam_parallel3(qnamesortedbam, out_csv, block_size=100000):
-  # out_fp = open(out_csv, 'w')
-  #
-  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
-  # out_fp.write(','.join(columns) + '\n')
-
-  t_total = 0
-  # p = Pool(2)
   t0 = time.time()
   offsets = [off for off in get_bam_sections(qnamesortedbam, block_size)]
   t1 = time.time()
   logger.debug('Pass 1: Find points to split BAM {} sec to run through BAM'.format(t1 - t0))
 
-
-  # for df_rows in p.imap(
-  #   process_bam_section,
-  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
-  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-  #   t1 = time.time()
-  #   t_total += block_size
-  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
-
-  # for df_rows in itertools.imap(
-  #   process_bam_section,
-  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
-  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-  #   t1 = time.time()
-  #   t_total += block_size
-  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
-
-
-def process_bam_parallel(qnamesortedbam, out_csv, block_size=1000):
-  out_fp = open(out_csv, 'w')
-
-  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
-  out_fp.write(','.join(columns) + '\n')
-
-  t_total = 0
-  p = Pool()
-
-  fp = pysam.AlignmentFile(qnamesortedbam)
-
-  t0 = time.time()
-  for rp_l in get_read_pairs_in_blocks(fp, block_size):
-    df_rows = p.map(parse_pair, rp_l, chunksize=block_size/4)
-    # df_rows = map(parse_pair, rp_l)
-    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-    t1 = time.time()
-    t_total += block_size
-    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
-
-  # for df_rows in p.imap_unordered(process_pairs, (rpp for rpp in get_read_pairs_in_blocks(fp, block_size))):
-  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-  #   t1 = time.time()
-  #   t_total += block_size
-  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+  return offsets
 
 
 def get_bam_sections(qnamesortedbam, block_size):
@@ -187,25 +106,23 @@ def get_bam_sections(qnamesortedbam, block_size):
   for cnt, _ in enumerate(fp):
     next(fp)
     if cnt % block_size == 0:
-      logger.debug('fp {}: {} reads'.format(fp.tell(), cnt))
       yield fp.tell()
 
-
+    if cnt > 50000:
+      break
 
 
 # args = qnamesortedbam, template_start, template_end
 def process_bam_section(args):
-  qnamesortedbam, offset, block_size = args
+  qnamesortedbam, offset, fname, block_size = args
   fp = pysam.AlignmentFile(qnamesortedbam)
   fp.seek(offset)
-  return [parse_pair(r1r2) for r1r2 in get_read_pairs(fp, block_size)]
 
+  out_fp = open(fname, 'w')
+  for row in [parse_pair(r1r2) for r1r2 in get_read_pairs(fp, block_size)]:
+    out_fp.write(','.join(row) + '\n')
 
-def get_all_read_pairs(fp):
-  for r1 in fp:
-    r2 = next(fp)
-    yield tuple([r1, r2])
-
+  return fname
 
 def get_read_pairs(fp, block_size):
   for cnt, r1 in enumerate(fp):
@@ -213,23 +130,6 @@ def get_read_pairs(fp, block_size):
       break
     r2 = next(fp)
     yield (r1, r2)
-
-
-def get_read_pairs_in_blocks(fp, block_size):
-  rpp = []
-  for cnt, r1 in enumerate(fp):
-    r2 = next(fp)
-    rpp += [(r1, r2)]
-    if (cnt + 1) % block_size == 0:
-      yield rpp
-      rpp = []
-
-  yield rpp
-
-
-
-def process_pairs(r1r2_g):
-  return [parse_pair(r1r2) for r1r2 in r1r2_g]
 
 
 def parse_pair(r1r2):
@@ -309,6 +209,135 @@ def parse_qname(read):
   for k, v in read.get_tags():
     r_dict[k] = v
   return r_dict
+
+
+
+
+def process_bam(qnamesortedbam, out_csv, block_size=10000):
+  out_fp = open(out_csv, 'w')
+
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  t0 = time.time()
+  for offset in get_bam_sections(qnamesortedbam, block_size):
+    df_rows = process_bam_section((qnamesortedbam, offset, block_size))
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+# https://groups.google.com/forum/#!topic/pysam-user-group/bBdqn7DkVtE
+# Using the multiprocessing module should work, but to be on the safe
+# side, open a separate file for read access in each worker
+# process. That is, instead of passing an instance of Samfile to a
+# subprocess, pass the filename instead and create a new samfile =
+# Samfile( ) in the function that is run in parallel.
+#
+# There are definitely side-effects when multi-threading and
+# possibly ones when multi-processing. Generally it is best to avoid
+# accessing a bam-file through the same instance of a Samfile object
+# from multiple threads/processes.
+
+def process_bam_parallel2(qnamesortedbam, out_csv, block_size=10000):
+  out_fp = open(out_csv, 'w')
+
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  p = Pool(8)
+  t0 = time.time()
+  for df_rows in p.imap(
+    process_bam_section,
+    ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+def process_bam_parallel3(qnamesortedbam, out_csv, block_size=100000):
+  # out_fp = open(out_csv, 'w')
+  #
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  # out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  # p = Pool(2)
+  t0 = time.time()
+  offsets = [off for off in get_bam_sections(qnamesortedbam, block_size)]
+  t1 = time.time()
+  logger.debug('Pass 1: Find points to split BAM {} sec to run through BAM'.format(t1 - t0))
+
+
+  # for df_rows in p.imap(
+  #   process_bam_section,
+  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+  # for df_rows in itertools.imap(
+  #   process_bam_section,
+  #   ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+def process_bam_parallel4(qnamesortedbam, out_csv, block_size=1000):
+  out_fp = open(out_csv, 'w')
+
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  p = Pool()
+
+  fp = pysam.AlignmentFile(qnamesortedbam)
+
+  t0 = time.time()
+  for rp_l in get_read_pairs_in_blocks(fp, block_size):
+    df_rows = p.map(parse_pair, rp_l, chunksize=block_size/4)
+    # df_rows = map(parse_pair, rp_l)
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+  # for df_rows in p.imap_unordered(process_pairs, (rpp for rpp in get_read_pairs_in_blocks(fp, block_size))):
+  #   pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+  #   t1 = time.time()
+  #   t_total += block_size
+  #   logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+
+def get_read_pairs_in_blocks(fp, block_size):
+  rpp = []
+  for cnt, r1 in enumerate(fp):
+    r2 = next(fp)
+    rpp += [(r1, r2)]
+    if (cnt + 1) % block_size == 0:
+      yield rpp
+      rpp = []
+
+  yield rpp
+
+
+def get_all_read_pairs(fp):
+  for r1 in fp:
+    r2 = next(fp)
+    yield tuple([r1, r2])
+
+
+def process_pairs(r1r2_g):
+  return [parse_pair(r1r2) for r1r2 in r1r2_g]
 
 
 if __name__ == '__main__':
