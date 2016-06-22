@@ -60,7 +60,7 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, v):
   logger.warning('This code only works for paired end simulated files ...')
   logger.warning('It is trvial to convert it to work for data with no qname information and SE')
 
-  process_bam(qnamesortedbam, outcsv)
+  process_bam_parallel(qnamesortedbam, outcsv)
 
 
 
@@ -75,33 +75,73 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, v):
   #   df_rows.append(parse_pair(r1r2))
 
 
-def process_bam(qnamesortedbam, out_csv, update_every_n_templates=10000):
+def process_bam(qnamesortedbam, out_csv, block_size=10000):
   out_fp = open(out_csv, 'w')
 
   columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
   out_fp.write(','.join(columns) + '\n')
 
-  fp = pysam.AlignmentFile(qnamesortedbam)
-
-  pool = Pool(4)
-  block_size = 1000
-  pp_fp = get_read_pairs(fp)
-  while 1:
-    df_rows = pool.map(parse_pair, itertools.islice(pp_fp, block_size))
-    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
-
-
-def get_read_pairs(fp, update_every_n_templates=10000):
+  t_total = 0
   t0 = time.time()
+  for offset in get_bam_sections(qnamesortedbam, block_size):
+    df_rows = process_bam_section((qnamesortedbam, offset, block_size))
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+# https://groups.google.com/forum/#!topic/pysam-user-group/bBdqn7DkVtE
+# Using the multiprocessing module should work, but to be on the safe
+# side, open a separate file for read access in each worker
+# process. That is, instead of passing an instance of Samfile to a
+# subprocess, pass the filename instead and create a new samfile =
+# Samfile( ) in the function that is run in parallel.
+#
+# There are definitely side-effects when multi-threading and
+# possibly ones when multi-processing. Generally it is best to avoid
+# accessing a bam-file through the same instance of a Samfile object
+# from multiple threads/processes.
+
+def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000):
+  out_fp = open(out_csv, 'w')
+
+  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  out_fp.write(','.join(columns) + '\n')
+
+  t_total = 0
+  p = Pool(4)
+  t0 = time.time()
+  for df_rows in p.imap(
+    process_bam_section,
+    ((qnamesortedbam, offset, block_size) for offset in get_bam_sections(qnamesortedbam, block_size))):
+    pd.DataFrame(df_rows, columns=columns).to_csv(out_csv, index=False, mode='a', compression='gzip' if out_csv.endswith('gz') else None)
+    t1 = time.time()
+    t_total += block_size
+    logger.debug('{} templates processed ({} templates/sec)'.format(t_total, t_total/(t1 - t0)))
+
+
+def get_bam_sections(qnamesortedbam, block_size):
+  fp = pysam.AlignmentFile(qnamesortedbam)
+  for cnt, _ in enumerate(fp):
+    next(fp)
+    if cnt % block_size == 0:
+      yield fp.tell()
+
+
+# args = qnamesortedbam, template_start, template_end
+def process_bam_section(args):
+  qnamesortedbam, offset, block_size = args
+  fp = pysam.AlignmentFile(qnamesortedbam)
+  fp.seek(offset)
+  return [parse_pair(r1r2) for r1r2 in get_read_pairs(fp, block_size)]
+
+
+def get_read_pairs(fp, block_size):
   for cnt, r1 in enumerate(fp):
+    if cnt > block_size:
+      break
     r2 = next(fp)
-
-    if cnt % update_every_n_templates == 0:
-      t1 = time.time()
-      logger.debug('{} templates processed ({} templates/sec)'.format(cnt, cnt/(t1 - t0)))
-      if cnt > 30000:
-        break
-
     yield (r1, r2)
 
 
