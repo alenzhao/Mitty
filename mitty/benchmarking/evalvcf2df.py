@@ -36,8 +36,8 @@ def convert_evcf(evalvcf, outcsv, v):
 @click.argument('file_b_only')
 def set_operations_evcf(file_a, file_b, file_a_and_b, file_a_only, file_b_only):
   """Perform intersection and difference operations on the variant calls."""
-  dfA = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt'])
-  dfB = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt'])
+  dfA = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt', 'truth', 'query'])
+  dfB = pd.read_csv(file_a, compression='gzip' if file_a.endswith('gz') else None).set_index(['chrom', 'pos', 'ref', 'alt', 'truth', 'query'])
 
   # Intersect
   dfA[dfA.index.isin(dfB.index)].to_csv(file_a_and_b, compression='gzip' if file_a_and_b.endswith('gz') else None)
