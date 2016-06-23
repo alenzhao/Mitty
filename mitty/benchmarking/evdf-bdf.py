@@ -15,6 +15,11 @@ import pandas as pd
 
 from mitty.benchmarking.dfcols import *
 
+import numpy
+import pyximport
+pyximport.install(setup_args={"include_dirs": numpy.get_include()})
+from mitty.benchmarking.eval_bdf_cy import *
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +41,19 @@ def cli(evdf, bdf, outcsv, t, block_size, v):
     exit(1)
 
   eval_df = pd.read_csv(evdf, dtype={'chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
-  eval_df = eval_df[:100]
   g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size))
 
+  t0 = time.time()
   p = Pool(t)
   write_header(outcsv)
+  total_reads = 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
     pd.DataFrame(l, columns=calls_reads_cols).to_csv(
       outcsv, index=False, header=False, compression='gzip' if outcsv.endswith('gz') else None, mode='a')
+    total_reads += block_size
+  t1 = time.time()
+  logger.debug('Took {:0.10}s to process {}/{} reads/calls ({:0.10} reads/s) with {} threads'.
+               format(t1 - t0, total_reads, len(eval_df), total_reads/(t1 - t0), t))
 
 
 def write_header(outcsv):
@@ -60,8 +70,8 @@ def get_all_templates_over_calls(args):
   return call_read_rows
 
 
-# DEBUG:__main__:Matched 30000 reads against 244546 calls in 2.52 s
-def get_templates_over_calls(bam_df, eval_df, mate='m1', mode='a'):
+# DEBUG:__main__:Took 19.30675101s to process 60000/244546 reads/calls (3107.72123 reads/s) with 2 threads
+def get_templates_over_calls_python(bam_df, eval_df, mate='m1', mode='a'):
   """
 
   :param bam_df: Whole or part of a bdf
