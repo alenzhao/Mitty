@@ -9,6 +9,7 @@ import logging
 import time
 from multiprocessing import Pool
 import os
+import gzip
 
 import click
 import pandas as pd
@@ -40,7 +41,14 @@ def cli(evdf, bdf, outcsv, t, block_size, v):
     logger.error('Output file {} already exists. Will not over-write'.format(outcsv))
     exit(1)
 
+  unsorted_file = 'unsorted-' + outcsv
+  process(evdf, bdf, unsorted_file, t, block_size)
+  sort_df(unsorted_file, outcsv)
+
+
+def process(evdf, bdf, outcsv, t, block_size):
   eval_df = pd.read_csv(evdf, dtype={'chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
+  logger.debug('Loaded {}'.format(evdf))
   g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size))
 
   t0 = time.time()
@@ -56,9 +64,30 @@ def cli(evdf, bdf, outcsv, t, block_size, v):
                format(t1 - t0, total_reads, len(eval_df), total_reads/(t1 - t0), t))
 
 
+def sort_df(incsv, outcsv, remove=True):
+  """
+
+  :param incsv:  Unsorted data frame
+  :param outcsv: Sorted data frame
+  :param remove: Remove unsorted file when done
+  :return:
+  """
+  logger.debug('Loading unsorted file and sorting')
+  pd.read_csv(incsv).sort_values('call_p1').to_csv(
+    outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+  logger.debug('Saved sorted data frame to {}'.format(outcsv))
+  if remove:
+    os.remove(incsv)
+    logger.debug('Removing unsorted file {}'.format(incsv))
+
+
 def write_header(outcsv):
-  with open(outcsv, 'w') as fp:
-    fp.write(','.join(calls_reads_cols) + '\n')
+  if outcsv.endswith('gz'):
+    with gzip.open(outcsv, 'w') as fp:
+      fp.write(','.join(calls_reads_cols) + '\n')
+  else:
+    with open(outcsv, 'w') as fp:
+      fp.write(','.join(calls_reads_cols) + '\n')
 
 
 def get_all_templates_over_calls(args):
