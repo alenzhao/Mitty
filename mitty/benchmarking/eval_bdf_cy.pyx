@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Pure python version Took 19.30675101s to process 60000/244546 reads/calls (3107.72123 reads/s) with 2 threads
 # Cython with no types Took 14.28495002s to process 60000/244546 reads/calls (4200.224707 reads/s) with 2 threads
-
+# Cython with types and better indexing  Took 5024.602472s to process 30000000/244546 templates/calls (5970.62159 templates/s) with 2 threads
 def get_templates_over_calls(bam_df, eval_df, mate='m1', mode='a'):
   """
 
@@ -67,6 +67,6 @@ def get_templates_over_calls(bam_df, eval_df, mate='m1', mode='a'):
         )
 
   t1 = time.time()
-  logger.debug('Matched {} reads against {} calls in {:0.3} s'.format(template_cnt, call_cnt, t1 - t0))
+  logger.debug('Matched {} templates against {} calls in {:0.3} s'.format(template_cnt, call_cnt, t1 - t0))
 
   return call_read_rows
