@@ -13,36 +13,10 @@ import subprocess
 import click
 import pysam
 
+from mitty.benchmarking.dfcols import *
+
 logger = logging.getLogger(__name__)
 
-read_info = [
-  'd_error',   # Alignment error metric
-  'a_mapped',  # Aligned mapped status
-  'a_p1',      # Aligned pos = chrom << 29 | pos
-  'a_p2',      # End pos of read
-  'a_cigar',
-  'c_mapped',  # Correct mapped status
-  'c_p1',      # Correct pos
-  'c_p2',      # End pos of read
-  'c_cigar',
-  'MQ'
-]
-
-gral_tags = [
-  'XG',
-  'YG',
-  'Yg',
-  'XI',
-  'XB',
-  'XE',
-  'YX',
-  'Yx',
-  'YS',
-  'YA',
-  'YQ',
-  'Ym',
-  'UQ'
-]
 
 
 @click.command()
@@ -69,11 +43,11 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000, threads=4):
 
   prefix = 'temp_bam2df'
 
-  columns = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info + gral_tags]
+  # bdf_cols = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
 
   # Write header
   with open(out_csv, 'w') as out_fp:
-    out_fp.write(','.join(columns) + '\n')
+    out_fp.write(','.join(bdf_cols) + '\n')
 
   offsets = break_bam(qnamesortedbam, block_size)
   fnames = ['{}_{}_{}'.format(prefix, n, out_csv) for n in range(len(offsets))]
@@ -156,7 +130,7 @@ def get_read_pairs(fp, block_size):
 
 
 def parse_pair(r1r2):
-  return [r1r2[0].qname] + [str(r_dd.get(k, '')) for r_dd in [parse_qname(r1r2[0]), parse_qname(r1r2[1])] for k in read_info + gral_tags]
+  return [r1r2[0].qname] + [str(r_dd.get(k, '')) for r_dd in [parse_qname(r1r2[0]), parse_qname(r1r2[1])] for k in read_info_cols + gral_tag_cols]
 
 
 def parse_qname(read):
