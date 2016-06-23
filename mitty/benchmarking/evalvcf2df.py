@@ -162,7 +162,7 @@ def parse_call_column(evcf):
     keys = row['FORMAT'].split(':')
     tv = {k: v for k, v in zip(keys, row['TRUTH'].split(':'))}
     qv = {k: v for k, v in zip(keys, row['QUERY'].split(':'))}
-    return qv.get('QQ', None), tv['BD'], tv['GT'], qv['BD'], tv['GT']
+    return qv.get('QQ', None), tv['BD'], tv['GT'], qv['BD'], qv['GT']
 
   return zip(*evcf.apply(parse, axis=1))
 
