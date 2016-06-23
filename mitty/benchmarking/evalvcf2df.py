@@ -22,7 +22,6 @@ def cli():
 @click.option('-v', count=True, help='Verbosity level')
 def convert_evcf(evalvcf, outcsv, v):
   """Convert an eval vcf from vcfeval to a dataframe."""
-  #parse_evcf(read_evcf_into_dataframe(evalvcf)).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
@@ -82,8 +81,8 @@ def read_evcf_into_dataframe(fname):
   logger.debug('Loaded eval csv into basic data frame ({:0.3} s) ({} rows)'.format(t1 - t0, len(evcf)))
 
   df = pd.DataFrame()
-  df['chrom'] = evcf['#CHROM']
-  df['pos'] = evcf['POS']
+  df['call_chrom'] = evcf['#CHROM']
+  df['call_pos'] = evcf['POS']
   df['ref'] = evcf['REF']
   df['alt'] = evcf['ALT']
   t2 = time.time()
@@ -98,13 +97,13 @@ def read_evcf_into_dataframe(fname):
   logger.debug('Computed variant size ({:0.3} s)'.format((t4 - t3)))
 
   # df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
-  evcf['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
+  evcf['pos_stop'] = df['call_pos'] - df['variant_size'].apply(lambda x: min(x, 0))
   evcf['int_chrom'] = evcf.apply(lambda row: seq_dict[row['#CHROM']], axis=1)
   t5 = time.time()
   logger.debug('Converted alphanumeric chrom code to integer seq_id ({:0.3} s)'.format((t5 - t4)))
 
-  df['v_p1'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['POS'], axis=1)
-  df['v_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1)
+  df['call_p1'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['POS'], axis=1)
+  df['call_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1)
   t6 = time.time()
   logger.debug('Computed compressed coordinates ({:0.3} s)'.format((t6 - t5)))
 
