@@ -1,18 +1,18 @@
 """Just a set of lists indicating our preferred order for columns for some standard data frames."""
 
 evdf_cols = [
-  u'call_chrom',
-  u'call_pos',
-  u'ref',
-  u'alt',
-  u'ROC_thresh',
-  u'truth',
-  u'truthGT',
-  u'query',
-  u'queryGT',
-  u'variant_size',
-  u'call_p1',
-  u'call_p2'
+  'call_chrom',
+  'call_pos',
+  'ref',
+  'alt',
+  'ROC_thresh',
+  'truth',
+  'truthGT',
+  'query',
+  'queryGT',
+  'variant_size',
+  'call_p1',
+  'call_p2'
 ]
 
 
