@@ -32,14 +32,19 @@ def get_templates_over_calls(bam_df, eval_df, mate='m1', mode='a'):
 
   d_sorted = bam_df.sort_values(by=[p1_key])
 
+  cdef:
+    # long[:] r_p1, r_p2, v_p1, v_p2
+    np.ndarray[long, ndim=1] r_p1, r_p2, v_p1, v_p2
+
   r_p1 = d_sorted[p1_key].values
   r_p2 = d_sorted[p2_key].values
 
   v_p1 = eval_df['call_p1'].values
   v_p2 = eval_df['call_p2'].values
 
-  call_cnt = len(eval_df)
-  t_idx1, t_idx2, template_cnt = 0, 0, len(bam_df)
+  cdef:
+    Py_ssize_t call_cnt = len(eval_df), t_idx1 = 0, t_idx2 = 0, template_cnt = len(bam_df)
+    Py_ssize_t call_index
 
   for call_index in range(call_cnt):
     if t_idx1 >= template_cnt:

@@ -52,7 +52,7 @@ def cli(evdf, bdf, outcsv, t, block_size, v):
       outcsv, index=False, header=False, compression='gzip' if outcsv.endswith('gz') else None, mode='a')
     total_reads += block_size
   t1 = time.time()
-  logger.debug('Took {:0.10}s to process {}/{} reads/calls ({:0.10} reads/s) with {} threads'.
+  logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
                format(t1 - t0, total_reads, len(eval_df), total_reads/(t1 - t0), t))
 
 
