@@ -107,7 +107,7 @@ def read_evcf_into_dataframe(fname):
   t6 = time.time()
   logger.debug('Computed compressed coordinates ({:0.3} s)'.format((t6 - t5)))
 
-  return df
+  return df.sort_values('call_p1')
 
 
 # TP:
