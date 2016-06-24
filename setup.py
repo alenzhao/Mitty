@@ -30,8 +30,10 @@ setup(
       'console_scripts': ['genomes = mitty.genomes:cli',
                           'reads = mitty.reads:cli',
                           #'god-aligner = mitty.benchmarking.god_aligner:cli',
+                          'bam2df = mitty.benchmarking.bam2df:cli',
                           'evalvcf2df = mitty.benchmarking.evalvcf2df:cli',
-                          'reads2calls = mitty.benchmarking.reads2calls:cli',
+                          'edf-bdf = mitty.benchmarking.edf_bdf:cli',
+                          # The stuff below may be deprecated
                           'perfectbam = mitty.benchmarking.perfectbam:cli',
                           'mismat = mitty.benchmarking.mismat:cli',
                           'indelbam = mitty.benchmarking.indelbam:cli',
