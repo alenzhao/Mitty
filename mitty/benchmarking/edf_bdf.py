@@ -19,7 +19,7 @@ from mitty.benchmarking.dfcols import *
 import numpy
 import pyximport
 pyximport.install(setup_args={"include_dirs": numpy.get_include()})
-from mitty.benchmarking.edf_bdf_cy import get_templates_over_calls
+from mitty.benchmarking.edf_bdf_cy import get_templates_over_calls, get_templates_over_calls_old
 
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,10 @@ def cli(evdf, bdf, outcsv, t, block_size, v):
   logging.basicConfig(level=level)
 
   if os.path.exists(outcsv):
-    logger.error('Output file {} already exists. Will not over-write'.format(outcsv))
-    exit(1)
+    # logger.error('Output file {} already exists. Will not over-write'.format(outcsv))
+    # exit(1)
+    logger.warning('Output file {} already exists, removing'.format(outcsv))
+    os.remove(outcsv)
 
   unsorted_file = 'unsorted-' + outcsv
   process(evdf, bdf, unsorted_file, t, block_size)
@@ -92,11 +94,13 @@ def write_header(outcsv):
 
 def get_all_templates_over_calls(args):
   bam_df, eval_df = args
-  call_read_rows = []
-  for mate in ['m1', 'm2']:
-    for mode in ['a', 'c']:
-      call_read_rows += get_templates_over_calls(bam_df, eval_df, mate, mode)
-  return call_read_rows
+  import traceback
+  try:
+    return get_templates_over_calls(bam_df, eval_df)
+  except Exception as e:
+    traceback.print_exc()
+    print()
+    raise e
 
 
 if __name__ == '__main__':
