@@ -114,156 +114,35 @@ cdef prepare_rows(
   eval_df, bam_df, size_t call_index,
   np.ndarray[size_t, ndim=2] r_srt_idx,
   np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2, read_type, flag_meanings):
+  cdef:
+    size_t condition, idx, last_qname_idx
+    np.ndarray[size_t, ndim=2] qname_idx_flag  # read index and flag
 
   rows = []
 
   npa = [
-    [i, condition]
+    [idx, condition]
     for condition in range(4)
-    for i in r_srt_idx[t_idx1[condition]:t_idx2[condition], condition]
+    for idx in r_srt_idx[t_idx1[condition]:t_idx2[condition], condition]
   ]
 
   if len(npa) > 0:
-    npa = sorted(npa)
+    qname_idx_flag = np.array(npa, dtype=np.uintp)
+    qname_idx_flag = qname_idx_flag[np.argsort(qname_idx_flag[:, 0]), :]
 
     call_s = eval_df.ix[call_index]
-    last_qname_idx = npa[0][0]
+    last_qname_idx = qname_idx_flag[0, 0]
     this_read_type = pd.Series(read_type)
-    for idx in range(len(npa)):
-      if npa[idx][0] == last_qname_idx:
-        this_read_type[flag_meanings[npa[idx][1]]] = 1
+    for idx in range(qname_idx_flag.shape[0]):
+      if qname_idx_flag[idx, 0] == last_qname_idx:
+        this_read_type[flag_meanings[qname_idx_flag[idx, 1]]] = 1
       else:
         rows += [pd.concat((call_s, bam_df.iloc[last_qname_idx], this_read_type))]
 
-        last_qname_idx = npa[idx][0]
+        last_qname_idx = <int>qname_idx_flag[idx, 0]
         this_read_type = pd.Series(read_type)
-        this_read_type[flag_meanings[npa[idx][1]]] = 1
+        this_read_type[flag_meanings[qname_idx_flag[idx, 1]]] = 1
 
     rows += [pd.concat((call_s, bam_df.iloc[last_qname_idx], this_read_type))]
 
   return rows
-
-
-# cdef prepare_rows(
-#   eval_df, bam_df, size_t call_index,
-#   np.ndarray[size_t, ndim=2] r_srt_idx,
-#   np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2, read_type, flag_meanings):
-#   cdef:
-#     np.uint64_t condition, idx, last_qname_idx
-#     np.ndarray[np.uint64_t, ndim=2] qname_idx_flag  # read index and flag
-#
-#   rows = []
-#
-#   npa = [
-#     [idx, condition]
-#     for condition in range(4)
-#     for idx in r_srt_idx[t_idx1[condition]:t_idx2[condition], condition]
-#   ]
-#
-#   if len(npa) > 0:
-#     qname_idx_flag = np.array(npa, dtype=np.uint64)
-#     qname_idx_flag = qname_idx_flag[np.argsort(qname_idx_flag[:, 0]), :]
-#
-#     call_s = eval_df.ix[call_index]
-#     last_qname_idx = qname_idx_flag[0, 0]
-#     this_read_type = pd.Series(read_type)
-#     for idx in range(qname_idx_flag.shape[0]):
-#       print(last_qname_idx, qname_idx_flag[idx, 0], qname_idx_flag[idx, 0] == last_qname_idx)
-#       if qname_idx_flag[idx, 0] == last_qname_idx:
-#         this_read_type[flag_meanings[qname_idx_flag[idx, 1]]] = 1
-#       else:
-#         rows += [pd.concat((call_s, bam_df.iloc[last_qname_idx], this_read_type))]
-#
-#         last_qname_idx = <int>qname_idx_flag[idx, 0]
-#         this_read_type = pd.Series(read_type)
-#         this_read_type[flag_meanings[qname_idx_flag[idx, 1]]] = 1
-#
-#   return rows
-
-
-def _dumb_prepare_rows(
-  eval_df, bam_df, size_t call_index,
-  np.ndarray[size_t, ndim=2] r_srt_idx,
-  np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2):
-
-  cdef:
-    size_t condition = 0, idx
-
-  feat = {{'m1_aligned_here': 1} for c in range(4)}
-  call_s = eval_df.ix[call_index]
-
-  return [
-    pd.concat((call_s, bam_df.iloc[r_srt_idx[idx, condition]], feat))
-    for condition in range(4)
-    for idx in range(t_idx1[condition], t_idx2[condition])
-    # if t_idx1[condition] < t_idx2[condition]
-  ]
-
-
-def get_templates_over_calls_old(bam_df, eval_df):
-  call_read_rows = []
-  for mate in ['m1', 'm2']:
-    for mode in ['a', 'c']:
-      call_read_rows += get_templates_over_calls_for_one_condition(bam_df, eval_df, mate, mode)
-  return call_read_rows
-
-
-# Pure python version Took 19.30675101s to process 60000/244546 reads/calls (3107.72123 reads/s) with 2 threads
-# Cython with no types Took 14.28495002s to process 60000/244546 reads/calls (4200.224707 reads/s) with 2 threads
-# Cython with types and better indexing  Took 5024.602472s to process 30000000/244546 templates/calls (5970.62159 templates/s) with 2 threads
-def get_templates_over_calls_for_one_condition(bam_df, eval_df, mate='m1', mode='a'):
-  """
-
-  :param bam_df: Whole or part of a bdf
-  :param eval_df: Whole (or part) of an evdf
-  :param mate: m1 or m2 : sort on mate1 or mate2
-  :param mode: 'a' or 'c' : sort on aligned or correct position
-  :return:
-  """
-  t0 = time.time()
-  call_read_rows = []
-
-  feature_key = [('{}_{}_here'.format(mate, 'aligned' if mode == 'a' else 'should_be'), 1)]
-
-  p1_key = '{}_{}_p1'.format(mate, mode)  # e.g. 'm1_a_p1'
-  p2_key = '{}_{}_p2'.format(mate, mode)  # e.g. 'm1_a_p2'
-
-  d_sorted = bam_df.sort_values([p1_key])
-
-  cdef:
-    np.ndarray[long, ndim=1] r_p1, r_p2, v_p1, v_p2
-
-  r_p1 = d_sorted[p1_key].values
-  r_p2 = d_sorted[p2_key].values
-
-  v_p1 = eval_df['call_p1'].values
-  v_p2 = eval_df['call_p2'].values
-
-  cdef:
-    Py_ssize_t call_cnt = len(eval_df), t_idx1 = 0, t_idx2 = 0, template_cnt = len(bam_df)
-    Py_ssize_t call_index
-
-  for call_index in range(call_cnt):
-    if t_idx1 >= template_cnt:
-      break
-
-    # Move read window such that all reads in window are over call
-    while t_idx1 < template_cnt and (r_p2[t_idx1] < v_p1[call_index]):  # Move upper edge of window
-      t_idx1 += 1
-
-    while t_idx2 < template_cnt and (r_p1[t_idx2] < v_p2[call_index]):  # Move lower edge of window
-      t_idx2 += 1
-      # There are some shenanigans here with the last read in the file
-      # (we don't consider it) but we don't care.
-
-    if t_idx2 > t_idx1:
-      citems = eval_df.iloc[call_index].to_dict().items()
-      for r in d_sorted.iloc[t_idx1:t_idx2].iterrows():
-        call_read_rows.append(
-          {k: v for k, v in citems + r[1].to_dict().items() + feature_key}
-        )
-
-  t1 = time.time()
-  logger.debug('Matched {} templates against {} calls in {:0.3} s'.format(template_cnt, call_cnt, t1 - t0))
-
-  return call_read_rows

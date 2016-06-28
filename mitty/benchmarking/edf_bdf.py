@@ -19,7 +19,7 @@ from mitty.benchmarking.dfcols import *
 import numpy
 import pyximport
 pyximport.install(setup_args={"include_dirs": numpy.get_include()})
-from mitty.benchmarking.edf_bdf_cy import get_templates_over_calls, get_templates_over_calls_old
+from mitty.benchmarking.edf_bdf_cy import get_templates_over_calls
 
 
 logger = logging.getLogger(__name__)
