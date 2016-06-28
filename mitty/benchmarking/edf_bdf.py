@@ -28,41 +28,60 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.argument('evdf')
 @click.argument('bdf')
-@click.argument('outcsv')
+@click.argument('outh5')
 @click.option('-t', default=4, help='Threads')
 @click.option('--block-size', default=100000, help='Block size')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(evdf, bdf, outcsv, t, block_size, v):
+def cli(evdf, bdf, outh5, t, block_size, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
-  if os.path.exists(outcsv):
+  if os.path.exists(outh5):
     # logger.error('Output file {} already exists. Will not over-write'.format(outcsv))
     # exit(1)
-    logger.warning('Output file {} already exists, removing'.format(outcsv))
-    os.remove(outcsv)
+    logger.warning('Output file {} already exists, removing'.format(outh5))
+    os.remove(outh5)
 
-  unsorted_file = 'unsorted-' + outcsv
-  process(evdf, bdf, unsorted_file, t, block_size)
-  sort_df(unsorted_file, outcsv)
+  process(evdf, bdf, outh5, t, block_size)
+  # sort_df(unsorted_file, outcsv)
 
 
-def process(evdf, bdf, outcsv, t, block_size):
+# TODO: perhaps have a lockable HDF5 store in the threads?
+def process(evdf, bdf, outh5, t, block_size):
   eval_df = pd.read_csv(evdf, dtype={'chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
   logger.debug('Loaded {}'.format(evdf))
   g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size))
 
   t0 = time.time()
   p = Pool(t)
-  write_header(outcsv)
+  st = pd.HDFStore(outh5, mode='w')
+
   total_reads, total_lines = 0, 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
-    pd.DataFrame(l, columns=calls_reads_cols).to_csv(
-      outcsv, index=False, header=False, compression='gzip' if outcsv.endswith('gz') else None, mode='a')
+    # NOTES:
+    # strings and minitemsize: http://stackoverflow.com/questions/15988871/hdfstore-appendstring-dataframe-fails-when-string-column-contents-are-longer
+    # http://pandas-docs.github.io/pandas-docs-travis/io.html#string-columns
+
+    # This commented code is the .to_hdf version. It works fine, but may be creating the index each time
+    # pd.DataFrame(l, columns=calls_reads_cols).to_hdf(
+    #   outh5, 'edfbdf', format='t', append=True,
+    #   min_itemsize=1000
+    # )
+    st.append('edfbdf', pd.DataFrame(l, columns=calls_reads_cols), min_itemsize=1000, index=False)
+
     total_reads += block_size
     total_lines += len(l)
     logger.debug('{} lines'.format(total_lines))
+
+  logger.debug('Creating index')
+  # http://pandas-docs.github.io/pandas-docs-travis/io.html#indexing
+  st.create_table_index(
+    'df', optlevel=9, kind='full',
+    columns=[
+      'call_p1', 'variant_size', 'truth', 'query', 'm1_d_error', 'm2_d_error',
+      'm1_aligned_here', 'm1_should_be_here', 'm2_aligned_here', 'm2_should_be_here'])
+
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
                format(t1 - t0, total_reads, len(eval_df), total_reads/(t1 - t0), t))

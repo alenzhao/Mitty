@@ -66,7 +66,7 @@ setup(
       'h5py>=2.5.0',
       'matplotlib>=1.3.0',
       'scipy',
-      'pandas',
-      #'plotly>=1.9.4'
+      'pandas>=0.18.1',
+      'tables>=3.2.2'
     ],
 )
