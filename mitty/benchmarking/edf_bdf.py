@@ -56,11 +56,13 @@ def process(evdf, bdf, outcsv, t, block_size):
   t0 = time.time()
   p = Pool(t)
   write_header(outcsv)
-  total_reads = 0
+  total_reads, total_lines = 0, 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
     pd.DataFrame(l, columns=calls_reads_cols).to_csv(
       outcsv, index=False, header=False, compression='gzip' if outcsv.endswith('gz') else None, mode='a')
     total_reads += block_size
+    total_lines += len(l)
+    logger.debug('{} lines'.format(total_lines))
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
                format(t1 - t0, total_reads, len(eval_df), total_reads/(t1 - t0), t))
