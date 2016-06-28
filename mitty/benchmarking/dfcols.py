@@ -47,4 +47,5 @@ gral_tag_cols = [
 
 bdf_cols = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
 
-calls_reads_cols = evdf_cols + bdf_cols + ['{}_{}_under_feature'.format(mate, mode) for mate in ['m1', 'm2'] for mode in ['a', 'c']]
+calls_reads_cols = evdf_cols + bdf_cols + [
+  '{}_{}_here'.format(mate, mode) for mate in ['m1', 'm2'] for mode in ['aligned', 'should_be']]
