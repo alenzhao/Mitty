@@ -30,11 +30,11 @@ read_info_cols = [
 ]
 
 gral_tag_cols = [
-  'XG',
+#  'XG',
   'YG',
   'Yg',
   'XI',
-  'XB',
+#  'XB',
   'XE',
   'YX',
   'Yx',
