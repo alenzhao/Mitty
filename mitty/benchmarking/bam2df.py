@@ -9,6 +9,7 @@ import logging
 import time
 from multiprocessing import Pool
 import subprocess
+from hashlib import md5
 
 import click
 import pysam
@@ -55,7 +56,7 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000, threads=4):
   p = Pool(threads)
   t_total = 0
   t0 = time.time()
-  for fn in p.imap_unordered(process_bam_section, [(qnamesortedbam, off, fn, block_size) for off, fn in zip(offsets, fnames)]):
+  for fn in p.imap_unordered(process_bam_section_w, [(qnamesortedbam, off, fn, block_size) for off, fn in zip(offsets, fnames)]):
     # This will only work on unix like systems
     with open(out_csv, 'a') as fp:
       subprocess.call(['cat', fn], stdout=fp)
@@ -96,6 +97,21 @@ def get_bam_sections(qnamesortedbam, block_size):
       yield fp.tell()
 
 
+def process_bam_section_w(args):
+  """A thin wrapper to allow proper tracebacks when things go wrong in a theead
+
+  :param args:
+  :return:
+  """
+  import traceback
+  try:
+    return process_bam_section(args)
+  except Exception as e:
+    traceback.print_exc()
+    print()
+    raise e
+
+
 # https://groups.google.com/forum/#!topic/pysam-user-group/bBdqn7DkVtE
 # Using the multiprocessing module should work, but to be on the safe
 # side, open a separate file for read access in each worker
@@ -108,7 +124,6 @@ def get_bam_sections(qnamesortedbam, block_size):
 # accessing a bam-file through the same instance of a Samfile object
 # from multiple threads/processes.
 
-# args = qnamesortedbam, template_start, template_end
 def process_bam_section(args):
   qnamesortedbam, offset, fname, block_size = args
   fp = pysam.AlignmentFile(qnamesortedbam)
@@ -130,7 +145,7 @@ def get_read_pairs(fp, block_size):
 
 
 def parse_pair(r1r2):
-  return [r1r2[0].qname] + [str(r_dd.get(k, '')) for r_dd in [parse_qname(r1r2[0]), parse_qname(r1r2[1])] for k in read_info_cols + gral_tag_cols]
+  return [r1r2[0].qname, str(int(md5(r1r2[0].qname).hexdigest()[:8], 16))] + [str(r_dd.get(k, '')) for r_dd in [parse_qname(r1r2[0]), parse_qname(r1r2[1])] for k in read_info_cols + gral_tag_cols]
 
 
 def parse_qname(read):
