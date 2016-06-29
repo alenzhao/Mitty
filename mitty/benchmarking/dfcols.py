@@ -45,7 +45,18 @@ gral_tag_cols = [
   'UQ'
 ]
 
-bdf_cols = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
+# These are the columns the bam2df file will have
+bdf_cols = ['qname', 'qname_hash'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
 
-calls_reads_cols = evdf_cols + bdf_cols + [
-  '{}_{}_here'.format(mate, mode) for mate in ['m1', 'm2'] for mode in ['aligned', 'should_be']]
+
+# For the edf-bdf structure
+# These are the cols from the call columns we will take
+edf_bdf_call_cols = [
+  'call_hash',
+  'ROC_thresh',  # Is this worth it?
+  'call_type',
+  'variant_size'
+]
+# And these are the cols from the read we will take
+r_cols = ['MQ', 'UQ', 'YQ']
+edf_bdf_read_cols = ['qname_hash'] + [m + t for m in ['m1_', 'm2_'] for t in r_cols] + ['align_flag']
