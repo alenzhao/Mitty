@@ -3,6 +3,8 @@
 import logging
 import gzip
 import time
+from hashlib import md5
+
 
 import click
 import pandas as pd
@@ -71,6 +73,20 @@ def get_contig_dict(fname):
   return seq_dict
 
 
+# This should be in a central library
+def call_hash(row):
+  return int(md5(','.join([row['#CHROM'], str(row['POS']), row['REF'], row['ALT']])).hexdigest()[:8], 16)
+
+
+def call_type_encoding(row):
+  if row['truth'] == 'TP':
+    return 0
+  elif row['truth'] == 'FN':
+    return 1
+  else:
+    return 2  # FP
+
+
 def read_evcf_into_dataframe(fname):
 
   t0 = time.time()
@@ -85,16 +101,24 @@ def read_evcf_into_dataframe(fname):
   df['call_pos'] = evcf['POS']
   df['ref'] = evcf['REF']
   df['alt'] = evcf['ALT']
+  t1_5 = time.time()
+  logger.debug('Copied selected columns ({:0.3} s)'.format((t1_5 - t1)))
+
+  df['call_hash'] = evcf.apply(call_hash, axis=1)
   t2 = time.time()
-  logger.debug('Copied selected columns ({:0.3} s)'.format((t2 - t1)))
+  logger.debug('Computed hash for call ({:0.3} s)'.format((t2 - t1_5)))
 
   df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
   t3 = time.time()
   logger.debug('Parsed call columns using format string ({:0.3} s)'.format((t3 - t2)))
 
+  df['call_type'] = df.apply(call_type_encoding, axis=1)
+  t3_5 = time.time()
+  logger.debug('Computed call type ({:0.3} s)'.format((t3_5 - t3)))
+
   df['variant_size'] = evcf.apply(variant_size, axis=1)
   t4 = time.time()
-  logger.debug('Computed variant size ({:0.3} s)'.format((t4 - t3)))
+  logger.debug('Computed variant size ({:0.3} s)'.format((t4 - t3_5)))
 
   # df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
   evcf['pos_stop'] = df['call_pos'] - df['variant_size'].apply(lambda x: min(x, 0))
@@ -106,6 +130,8 @@ def read_evcf_into_dataframe(fname):
   df['call_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1)
   t6 = time.time()
   logger.debug('Computed compressed coordinates ({:0.3} s)'.format((t6 - t5)))
+
+  logger.debug('Took {:0.3} s to process eval.vcf'.format(t6 - t0))
 
   return df.sort_values('call_p1')
 
