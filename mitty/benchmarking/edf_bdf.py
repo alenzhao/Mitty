@@ -53,8 +53,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
   # TODO, turn this into HDF5 too
   eval_df = pd.read_csv(evdf, dtype={'call_chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
   logger.debug('Loaded {}'.format(evdf))
-  g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size,
-                                                   nrows=block_size * max_blocks_to_do if max_blocks_to_do else None))
+  g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size))
 
   t0 = time.time()
   p = Pool(t)
@@ -76,7 +75,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
     'm2_c_cigar': 100,
   }
 
-  total_reads, total_lines = 0, 0
+  total_reads, total_lines, blocks = 0, 0, 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
     # NOTES:
     # strings and minitemsize: http://stackoverflow.com/questions/15988871/hdfstore-appendstring-dataframe-fails-when-string-column-contents-are-longer
@@ -93,6 +92,10 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
     total_reads += block_size
     total_lines += len(l)
     logger.debug('{} lines'.format(total_lines))
+
+    blocks += 1
+    if max_blocks_to_do is not None and blocks >= max_blocks_to_do:
+      break
 
   logger.debug('Creating index')
   # http://pandas-docs.github.io/pandas-docs-travis/io.html#indexing
