@@ -31,8 +31,9 @@ logger = logging.getLogger(__name__)
 @click.argument('outh5')
 @click.option('-t', default=4, help='Threads')
 @click.option('--block-size', default=100000, help='Block size')
+@click.option('--max-blocks-to-do', type=int, help='Maximum blocks to do (for debugging)')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(evdf, bdf, outh5, t, block_size, v):
+def cli(evdf, bdf, outh5, t, block_size, max_blocks_to_do, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -43,19 +44,37 @@ def cli(evdf, bdf, outh5, t, block_size, v):
     logger.warning('Output file {} already exists, removing'.format(outh5))
     os.remove(outh5)
 
-  process(evdf, bdf, outh5, t, block_size)
+  process(evdf, bdf, outh5, t, block_size, max_blocks_to_do)
   # sort_df(unsorted_file, outcsv)
 
 
 # TODO: perhaps have a lockable HDF5 store in the threads?
-def process(evdf, bdf, outh5, t, block_size):
-  eval_df = pd.read_csv(evdf, dtype={'chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
+def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
+  # TODO, turn this into HDF5 too
+  eval_df = pd.read_csv(evdf, dtype={'call_chrom': 'S10'}, compression='gzip' if evdf.endswith('gz') else None)
   logger.debug('Loaded {}'.format(evdf))
-  g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size))
+  g = ((bam_df, eval_df) for bam_df in pd.read_csv(bdf, compression='gzip' if bdf.endswith('gz') else None, chunksize=block_size,
+                                                   nrows=block_size * max_blocks_to_do if max_blocks_to_do else None))
 
   t0 = time.time()
   p = Pool(t)
-  st = pd.HDFStore(outh5, mode='w')
+  # st = pd.HDFStore(outh5, mode='a', complevel=9, complib='blosc')
+  st = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc")
+  data_columns = [
+    'call_p1', 'variant_size', 'truth', 'query', 'm1_d_error', 'm2_d_error',
+    'm1_aligned_here', 'm1_should_be_here', 'm2_aligned_here', 'm2_should_be_here'
+  ]
+  min_itemsize = {
+    'ref': 1000,
+    'alt': 1000,  # Look into dropping these
+    'qname': 200,
+    'truthGT': 5,
+    'queryGT': 5,
+    'm1_a_cigar': 100,
+    'm1_c_cigar': 100,
+    'm2_a_cigar': 100,
+    'm2_c_cigar': 100,
+  }
 
   total_reads, total_lines = 0, 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
@@ -68,7 +87,8 @@ def process(evdf, bdf, outh5, t, block_size):
     #   outh5, 'edfbdf', format='t', append=True,
     #   min_itemsize=1000
     # )
-    st.append('edfbdf', pd.DataFrame(l, columns=calls_reads_cols), min_itemsize=1000, index=False)
+    st.append('edfbdf', pd.DataFrame(l, columns=calls_reads_cols),
+              data_columns=data_columns, min_itemsize=min_itemsize, index=False)
 
     total_reads += block_size
     total_lines += len(l)
@@ -76,11 +96,7 @@ def process(evdf, bdf, outh5, t, block_size):
 
   logger.debug('Creating index')
   # http://pandas-docs.github.io/pandas-docs-travis/io.html#indexing
-  st.create_table_index(
-    'df', optlevel=9, kind='full',
-    columns=[
-      'call_p1', 'variant_size', 'truth', 'query', 'm1_d_error', 'm2_d_error',
-      'm1_aligned_here', 'm1_should_be_here', 'm2_aligned_here', 'm2_should_be_here'])
+  st.create_table_index('df', optlevel=9, kind='full', columns=data_columns)
 
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
