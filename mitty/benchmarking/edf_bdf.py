@@ -1,9 +1,5 @@
 """Load in bdf and evdf and find reads under the calls
-
-
 python ~/Code/Mitty/mitty/benchmarking/evdf-bdf.py eval.df.csv.gz test-bam.csv.gz calls-reads.csv -v
-
-
 """
 import logging
 import time
@@ -31,7 +27,7 @@ logger = logging.getLogger(__name__)
 @click.argument('outh5')
 @click.option('-t', default=4, help='Threads')
 @click.option('--block-size', default=100000, help='Block size')
-@click.option('--max-blocks-to-do', type=int, help='Maximum blocks to do (for debugging)')
+@click.option('--max-blocks-to-do', type=int, help='Maximum blocks to do (for debugging, single thread only)')
 @click.option('-v', count=True, help='Verbosity level')
 def cli(evdf, bdf, outh5, t, block_size, max_blocks_to_do, v):
   """Associate reads in a BAM with variant calls."""
@@ -57,23 +53,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
 
   t0 = time.time()
   p = Pool(t)
-  # st = pd.HDFStore(outh5, mode='a', complevel=9, complib='blosc')
-  st = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc")
-  data_columns = [
-    'call_p1', 'variant_size', 'truth', 'query', 'm1_d_error', 'm2_d_error',
-    'm1_aligned_here', 'm1_should_be_here', 'm2_aligned_here', 'm2_should_be_here'
-  ]
-  min_itemsize = {
-    'ref': 1000,
-    'alt': 1000,  # Look into dropping these
-    'qname': 200,
-    'truthGT': 5,
-    'queryGT': 5,
-    'm1_a_cigar': 100,
-    'm1_c_cigar': 100,
-    'm2_a_cigar': 100,
-    'm2_c_cigar': 100,
-  }
+  st = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc", format='t')
 
   total_reads, total_lines, blocks = 0, 0, 0
   for l in p.imap_unordered(get_all_templates_over_calls, g):
@@ -86,8 +66,9 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
     #   outh5, 'edfbdf', format='t', append=True,
     #   min_itemsize=1000
     # )
-    st.append('edfbdf', pd.DataFrame(l, columns=calls_reads_cols),
-              data_columns=data_columns, min_itemsize=min_itemsize, index=False)
+    st.append('edfbdf',
+              pd.DataFrame(l, columns=edf_bdf_call_cols + edf_bdf_read_cols),
+              data_columns=edf_bdf_call_cols + edf_bdf_read_cols, index=False)
 
     total_reads += block_size
     total_lines += len(l)
@@ -99,7 +80,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
 
   logger.debug('Creating index')
   # http://pandas-docs.github.io/pandas-docs-travis/io.html#indexing
-  st.create_table_index('df', optlevel=9, kind='full', columns=data_columns)
+  st.create_table_index('edfbdf', optlevel=9, kind='full', columns=edf_bdf_call_cols + edf_bdf_read_cols)
 
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
@@ -121,15 +102,6 @@ def sort_df(incsv, outcsv, remove=True):
   if remove:
     os.remove(incsv)
     logger.debug('Removing unsorted file {}'.format(incsv))
-
-
-def write_header(outcsv):
-  if outcsv.endswith('gz'):
-    with gzip.open(outcsv, 'w') as fp:
-      fp.write(','.join(calls_reads_cols) + '\n')
-  else:
-    with open(outcsv, 'w') as fp:
-      fp.write(','.join(calls_reads_cols) + '\n')
 
 
 def get_all_templates_over_calls(args):
