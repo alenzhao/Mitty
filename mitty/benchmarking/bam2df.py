@@ -69,10 +69,6 @@ def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000, threads=4):
   subprocess.call(['gzip', '-f', out_csv])
 
 
-# def seq_dict_from_bam(qnamesortedbam):
-#   fp = pysam.AlignmentFile(qnamesortedbam)
-#   return {s['SN']: n + 1 for n, s in enumerate(fp.header['SQ'])}
-
 
 def break_bam(qnamesortedbam, block_size):
   """Go through the BAM and mark-off the offsets,
