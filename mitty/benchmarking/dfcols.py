@@ -58,5 +58,13 @@ edf_bdf_call_cols = [
   'variant_size'
 ]
 # And these are the cols from the read we will take
-r_cols = ['MQ', 'UQ', 'YQ']
+r_cols = ['d_error', 'MQ', 'UQ', 'YQ', 'YS', 'YA', 'Ym']
 edf_bdf_read_cols = ['qname_hash'] + [m + t for m in ['m1_', 'm2_'] for t in r_cols] + ['align_flag']
+
+
+# For now, not using a multiple table store, for simplicity, may revisit if things get slow/clunky
+# Just trying out restricting the indexes
+edf_bdf_data_cols = [
+  'call_type',
+  'variant_size'
+]

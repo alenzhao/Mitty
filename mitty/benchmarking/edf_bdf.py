@@ -68,7 +68,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
     # )
     st.append('edfbdf',
               pd.DataFrame(l, columns=edf_bdf_call_cols + edf_bdf_read_cols),
-              data_columns=edf_bdf_call_cols + edf_bdf_read_cols, index=False)
+              data_columns=edf_bdf_data_cols, index=False)
 
     total_reads += block_size
     total_lines += len(l)
@@ -80,7 +80,7 @@ def process(evdf, bdf, outh5, t, block_size, max_blocks_to_do=None):
 
   logger.debug('Creating index')
   # http://pandas-docs.github.io/pandas-docs-travis/io.html#indexing
-  st.create_table_index('edfbdf', optlevel=9, kind='full', columns=edf_bdf_call_cols + edf_bdf_read_cols)
+  st.create_table_index('edfbdf', optlevel=9, kind='full', columns=edf_bdf_data_cols)
 
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
