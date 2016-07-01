@@ -5,9 +5,10 @@ import gzip
 import time
 from hashlib import md5
 
-
 import click
 import pandas as pd
+
+import mitty.benchmarking.dfcols as dfcols
 
 
 logger = logging.getLogger(__name__)
@@ -20,14 +21,21 @@ def cli():
 
 @cli.command('convert')
 @click.argument('evalvcf')
-@click.argument('outcsv')
+@click.argument('outhdf')
 @click.option('-v', count=True, help='Verbosity level')
-def convert_evcf(evalvcf, outcsv, v):
+def convert_evcf(evalvcf, outhdf, v):
   """Convert an eval vcf from vcfeval to a dataframe."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
-  read_evcf_into_dataframe(evalvcf).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+  #  read_evcf_into_dataframe(evalvcf).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+
+  t0 = time.time()
+  read_evcf_into_dataframe(evalvcf).to_hdf(
+    outhdf, 'evcf', index=False,
+    data_columns=True,
+    comlevel=9, complib='blosc', format='table')
+  logger.debug('Took {:0.3} s to process eval.vcf'.format(time.time() - t0))
 
 
 @cli.command('compare')
@@ -73,67 +81,64 @@ def get_contig_dict(fname):
   return seq_dict
 
 
-# This should be in a central library
-def call_hash(row):
-  return int(md5(','.join([row['#CHROM'], str(row['POS']), row['REF'], row['ALT']])).hexdigest()[:8], 16)
-
-
-def call_type_encoding(row):
-  if row['truth'] == 'TP':
-    return 0
-  elif row['truth'] == 'FN':
-    return 1
-  else:
-    return 2  # FP
-
-
 def read_evcf_into_dataframe(fname):
 
   t0 = time.time()
   hdr_cnt = get_header_row_count_for_vcf(fname)
   seq_dict = get_contig_dict(fname)
-  evcf = pd.read_csv(fname, dtype={'#CHROM': 'S10'}, skiprows=hdr_cnt, sep='\t', compression='gzip', engine='c')
+  chrom_id_max_len = max([len(v) for v in seq_dict.keys()])
+  chrom_id_fmt = 'a{}'.format(chrom_id_max_len)
+  evcf = pd.read_csv(fname, dtype={'#CHROM': chrom_id_fmt}, skiprows=hdr_cnt, sep='\t', compression='gzip', engine='c')
   t1 = time.time()
   logger.debug('Loaded eval csv into basic data frame ({:0.3} s) ({} rows)'.format(t1 - t0, len(evcf)))
 
+  evcf_cols = dfcols.get_evcf_cols(chrom_id_fmt=chrom_id_fmt)
+
   df = pd.DataFrame()
-  df['call_chrom'] = evcf['#CHROM']
-  df['call_pos'] = evcf['POS']
+  df['call_chrom'] = evcf['#CHROM'].values.astype(evcf_cols['call_chrom'])
+  df['call_pos'] = evcf['POS'].values.astype(evcf_cols['call_pos'])
   df['ref'] = evcf['REF']
   df['alt'] = evcf['ALT']
   t1_5 = time.time()
   logger.debug('Copied selected columns ({:0.3} s)'.format((t1_5 - t1)))
 
-  df['call_hash'] = evcf.apply(call_hash, axis=1)
+  df['call_hash'] = evcf.apply(dfcols.call_hash, axis=1).values.astype(evcf_cols['call_hash'])
   t2 = time.time()
   logger.debug('Computed hash for call ({:0.3} s)'.format((t2 - t1_5)))
 
   df['ROC_thresh'], df['truth'], df['truthGT'], df['query'], df['queryGT'] = parse_call_column(evcf)
+  for k in ['ROC_thresh', 'truth', 'truthGT', 'query', 'queryGT']:
+    df[k] = df[k].values.astype(evcf_cols[k])
+
   t3 = time.time()
   logger.debug('Parsed call columns using format string ({:0.3} s)'.format((t3 - t2)))
 
-  df['call_type'] = df.apply(call_type_encoding, axis=1)
+  df['call_type'] = df.apply(dfcols.call_type_encoding, axis=1).values.astype(evcf_cols['call_type'])
   t3_5 = time.time()
   logger.debug('Computed call type ({:0.3} s)'.format((t3_5 - t3)))
 
-  df['variant_size'] = evcf.apply(variant_size, axis=1)
+  df['variant_size'] = evcf.apply(variant_size, axis=1).values.astype(evcf_cols['variant_size'])
   t4 = time.time()
   logger.debug('Computed variant size ({:0.3} s)'.format((t4 - t3_5)))
 
-  # df['pos_stop'] = df['pos'] - df['variant_size'].apply(lambda x: min(x, 0))
   evcf['pos_stop'] = df['call_pos'] - df['variant_size'].apply(lambda x: min(x, 0))
   evcf['int_chrom'] = evcf.apply(lambda row: seq_dict[row['#CHROM']], axis=1)
   t5 = time.time()
   logger.debug('Converted alphanumeric chrom code to integer seq_id ({:0.3} s)'.format((t5 - t4)))
 
-  df['call_p1'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['POS'], axis=1)
-  df['call_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1)
+  df['call_p1'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['POS'], axis=1).values.astype(evcf_cols['call_p1'])
+  df['call_p2'] = evcf.apply(lambda row: (row['int_chrom'] << 29) | row['pos_stop'], axis=1).values.astype(evcf_cols['call_p2'])
   t6 = time.time()
   logger.debug('Computed compressed coordinates ({:0.3} s)'.format((t6 - t5)))
 
-  logger.debug('Took {:0.3} s to process eval.vcf'.format(t6 - t0))
+  s_df_cols = set(df.columns.values)
+  s_df_required_cols = set(evcf_cols.keys())
 
-  return df.sort_values('call_p1')
+  if s_df_required_cols - s_df_cols:
+    logger.error("Some required columns missing from truth VCF code")
+    logger.error(s_df_required_cols - s_df_cols)
+
+  return df  # df.sort_values('call_p1')
 
 
 # TP:
