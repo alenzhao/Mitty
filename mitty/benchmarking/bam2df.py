@@ -8,27 +8,30 @@ python ~/Code/Mitty/mitty/benchmarking/bam2df.py qname-run00001.S.pe.100x500.per
 import logging
 import time
 from multiprocessing import Pool
+import os
 import subprocess
 from hashlib import md5
 
+import numpy as np
+import pandas as pd
 import click
 import pysam
 
-from mitty.benchmarking.dfcols import *
+import mitty.benchmarking.dfcols as dfcols
 
 logger = logging.getLogger(__name__)
 
 
-
 @click.command()
 @click.argument('qnamesortedbam')
-@click.argument('outcsv')
+@click.argument('outh5')
 @click.option('--paired-reads/--single-end-reads', default=True, help='Are these paired end or single end reads')
 @click.option('--simulated-reads/--real-reads', default=True, help='Are these simulated from Mitty? If so, parse qnames for truth positions')
 @click.option('--block-size', default=100000, help='Block size')
+@click.option('--max-templates', type=int, help='Max templates to process (for debugging)')
 @click.option('-t', default=4, help='Threads')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, t, v):
+def cli(qnamesortedbam, outh5, paired_reads, simulated_reads, block_size, max_templates, t, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -36,65 +39,54 @@ def cli(qnamesortedbam, outcsv, paired_reads, simulated_reads, block_size, t, v)
   logger.warning('This code only works for paired end simulated files ...')
   logger.warning('It is trvial to convert it to work for data with no qname information and SE')
 
-  process_bam_parallel(qnamesortedbam, outcsv, block_size, threads=t)
+  if os.path.exists(outh5):
+    logger.warning('Removing existing file {}'.format(outh5))
+    os.remove(outh5)
+
+  if max_templates is not None:
+    logger.debug('Will process only {:d} templates'.format(max_templates))
+
+  process_bam_parallel(qnamesortedbam, outh5, block_size, threads=t, max_templates=max_templates)
 
 
-def process_bam_parallel(qnamesortedbam, out_csv, block_size=10000, threads=4):
-  """Header is in 'tmp_hdr.csv' partials are in tmp_1.csv, tmp_2.csv ...."""
-
-  prefix = 'temp_bam2df'
-
-  # bdf_cols = ['qname'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
-
-  # Write header
-  with open(out_csv, 'w') as out_fp:
-    out_fp.write(','.join(bdf_cols) + '\n')
-
-  offsets = break_bam(qnamesortedbam, block_size)
-  fnames = ['{}_{}_{}'.format(prefix, n, out_csv) for n in range(len(offsets))]
+def process_bam_parallel(qnamesortedbam, outh5, block_size=10000, threads=4, max_templates=None):
 
   p = Pool(threads)
   t_total = 0
   t0 = time.time()
-  for fn in p.imap_unordered(process_bam_section_w, [(qnamesortedbam, off, fn, block_size) for off, fn in zip(offsets, fnames)]):
-    # This will only work on unix like systems
-    with open(out_csv, 'a') as fp:
-      subprocess.call(['cat', fn], stdout=fp)
-    subprocess.call(['rm', fn])
-    t1 = time.time()
-    t_total += block_size
-    logger.debug('{} templates processed ({} templates/sec). Written to {}'.format(t_total, t_total/(t1 - t0), fn))
 
-  # This will only work on unix like systems
-  subprocess.call(['gzip', '-f', out_csv])
+  st = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc", format='t')
 
-
-
-def break_bam(qnamesortedbam, block_size):
-  """Go through the BAM and mark-off the offsets,
-
-  :param qnamesortedbam:
-  :param block_size:
-  :return:
-  """
-  t0 = time.time()
-  offsets = [off for off in get_bam_sections(qnamesortedbam, block_size)]
   t1 = time.time()
-  logger.debug('Pass 1: Find points to split BAM. Took {} sec to run through BAM'.format(t1 - t0))
+  for shard in p.imap_unordered(process_bam_section_w, get_bam_sections(qnamesortedbam, block_size, max_templates)):
+    st.append('bdf', pd.DataFrame(shard), index=False)
 
-  return offsets
+    t1 = time.time()
+    t_total += shard.shape[0]
+    logger.debug('{} templates processed and written ({} templates/sec).'.format(t_total, t_total / (t1 - t0)))
+
+  t2 = time.time()
+  st.create_table_index('bdf', optlevel=9, kind='full')
+  logger.debug('Took {} sec to index file'.format(t2 - t1))
 
 
-def get_bam_sections(qnamesortedbam, block_size):
+def get_bam_sections(qnamesortedbam, block_size, max_templates=None):
   fp = pysam.AlignmentFile(qnamesortedbam)
   for cnt, _ in enumerate(fp):
     next(fp)
+    next(fp)
     if cnt % block_size == 0:
-      yield fp.tell()
+      yield {
+        'bam_name': qnamesortedbam,
+        'file_offset': fp.tell(),
+        'block_size': block_size
+      }
+    if max_templates is not None and cnt >= max_templates:
+      break
 
 
 def process_bam_section_w(args):
-  """A thin wrapper to allow proper tracebacks when things go wrong in a theead
+  """A thin wrapper to allow proper tracebacks when things go wrong in a thread
 
   :param args:
   :return:
@@ -121,30 +113,27 @@ def process_bam_section_w(args):
 # from multiple threads/processes.
 
 def process_bam_section(args):
-  qnamesortedbam, offset, fname, block_size = args
-  fp = pysam.AlignmentFile(qnamesortedbam)
-  fp.seek(offset)
 
-  out_fp = open(fname, 'w')
-  for row in [parse_pair(r1r2) for r1r2 in get_read_pairs(fp, block_size)]:
-    out_fp.write(','.join(row) + '\n')
+  df = np.empty((args['block_size'],), dtype=dfcols.get_bdf_cols().items())
 
-  return fname
+  fp = pysam.AlignmentFile(args['bam_name'])
+  fp.seek(args['file_offset'])
 
-
-def get_read_pairs(fp, block_size):
-  for cnt, r1 in enumerate(fp):
-    if cnt == block_size:
+  for n in xrange(args['block_size']):
+    r1 = next(fp, None)
+    if r1 is None:
+      df = df[:n]
       break
+
     r2 = next(fp)
-    yield (r1, r2)
+    parse_read(r1, 'm1', df, n)
+    parse_read(r2, 'm2', df, n)
+    df['qname_hash'][n] = int(md5(r1.qname).hexdigest()[:8], 16)
+
+  return df
 
 
-def parse_pair(r1r2):
-  return [r1r2[0].qname, str(int(md5(r1r2[0].qname).hexdigest()[:8], 16))] + [str(r_dd.get(k, '')) for r_dd in [parse_qname(r1r2[0]), parse_qname(r1r2[1])] for k in read_info_cols + gral_tag_cols]
-
-
-def parse_qname(read):
+def parse_read(read, mate, df, n):
 
   # Took out unpaired read handling for speed
 
@@ -171,14 +160,14 @@ def parse_qname(read):
   read.cigarstring = cigar
   cigar_ops = read.cigartuples
 
-  c_mapped = 1
+  c_mapped = 0b10
   # Parse alignment
   long_insert = 0
   if read.is_unmapped:
     a_mapped = 0
     d = 1000000000
   else:
-    a_mapped = 1
+    a_mapped = 0b01
     if read.reference_id != chrom - 1:
       d = 1000000000
     else:  # Analyze the correctness by checking each breakpoint
@@ -199,26 +188,20 @@ def parse_qname(read):
           elif op == 2:  # D
             correct_pos += cnt
 
-  a_pos = ((read.reference_id + 1) << 29) | read.pos
-  c_pos = (chrom << 29) | pos
+  # a_pos = ((read.reference_id + 1) << 29) | read.pos
+  # c_pos = (chrom << 29) | pos
 
-  r_dict = {
-    'd_error': d,  # Fill this out with proper metric
-    'qname': read.qname,
-    'mate': 0 if read.is_read1 else 1,
-    'a_mapped': a_mapped,
-    'a_p1': a_pos,
-    'a_p2': a_pos + read.rlen,
-    'a_cigar': a_cigar,
-    'c_mapped': c_mapped,
-    'c_p1': c_pos,
-    'c_p2': c_pos + read.rlen,
-    'c_cigar': cigar,
-    'MQ': read.mapping_quality,
-  }
-  for k, v in read.get_tags():
-    r_dict[k] = v
-  return r_dict
+  df[mate + '_correct_pos'][n] = (chrom << 29) | pos
+  df[mate + '_aligned_pos'][n] = ((read.reference_id + 1) << 29) | pos
+  df[mate + '_mapped'][n] = a_mapped | c_mapped
+  df[mate + '_d_error'][n] = d
+  df[mate + '_MQ'][n] = read.mapping_quality
+
+  # print(str(n) + ', ' + mate + ':' + str(d))
+
+  tags = {k: v for k, v in read.get_tags()}
+  for dtk in dfcols.graph_diagnostic_tags():
+    df[mate + '_' + dtk[0]][n] = tags.get(dtk[0], 0)
 
 
 if __name__ == '__main__':

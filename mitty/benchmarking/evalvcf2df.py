@@ -3,7 +3,7 @@
 import logging
 import gzip
 import time
-from hashlib import md5
+import os
 
 import click
 import pandas as pd
@@ -21,21 +21,27 @@ def cli():
 
 @cli.command('convert')
 @click.argument('evalvcf')
-@click.argument('outhdf')
+@click.argument('outh5')
 @click.option('-v', count=True, help='Verbosity level')
-def convert_evcf(evalvcf, outhdf, v):
+def convert_evcf(evalvcf, outh5, v):
   """Convert an eval vcf from vcfeval to a dataframe."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
   #  read_evcf_into_dataframe(evalvcf).to_csv(outcsv, index=False, compression='gzip' if outcsv.endswith('gz') else None)
+  if os.path.exists(outh5):
+    logger.warning('Removing existing file {}'.format(outh5))
+    os.remove(outh5)
 
   t0 = time.time()
   read_evcf_into_dataframe(evalvcf).to_hdf(
-    outhdf, 'evcf', index=False,
-    data_columns=True,
+    outh5, 'edf', index=False,
+    data_columns=dfcols.get_edf_data_cols(),
     comlevel=9, complib='blosc', format='table')
   logger.debug('Took {:0.3} s to process eval.vcf'.format(time.time() - t0))
+
+  # For our data bzip2 gives 1/4 the file size of blosc, but takes 4x time to load back.
+  # I pick blosc for speed.
 
 
 @cli.command('compare')
@@ -92,7 +98,7 @@ def read_evcf_into_dataframe(fname):
   t1 = time.time()
   logger.debug('Loaded eval csv into basic data frame ({:0.3} s) ({} rows)'.format(t1 - t0, len(evcf)))
 
-  evcf_cols = dfcols.get_evcf_cols(chrom_id_fmt=chrom_id_fmt)
+  evcf_cols = dfcols.get_edf_cols(chrom_id_fmt=chrom_id_fmt)
 
   df = pd.DataFrame()
   df['call_chrom'] = evcf['#CHROM'].values.astype(evcf_cols['call_chrom'])
