@@ -55,7 +55,7 @@ def bdf_iter(edf, bdf_st, block_size, max_blks=None):
 
 def process(edf_name, bdf_name, outh5, t, block_size, max_blocks_to_do=None):
 
-  edf = pd.read_hdf(edf_name, 'edf')
+  edf = pd.read_hdf(edf_name, 'edf', columns=dfcols.get_edf_data_cols().keys())  # We only need these ones here
   logger.debug('Loaded {}'.format(edf_name))
 
   bdf_st = pd.HDFStore(bdf_name, mode='r')
@@ -66,10 +66,12 @@ def process(edf_name, bdf_name, outh5, t, block_size, max_blocks_to_do=None):
   st_out = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc", format='t')
 
   total_lines = 0
-  for crdf in p.imap_unordered(get_all_templates_over_calls, bdf_iter(edf, bdf_st, block_size, max_blocks_to_do)):
-    st_out.append('crdf', crdf, data_columns=dfcols.get_edf_data_cols().keys(), index=False)
+  for cr in p.imap_unordered(get_all_templates_over_calls, bdf_iter(edf, bdf_st, block_size, max_blocks_to_do)):
+    if cr is not None:
+      st_out.append('crdf', pd.DataFrame(cr),
+                    data_columns=dfcols.get_edf_data_cols().keys(), index=False)
 
-    total_lines += len(crdf)
+    total_lines += len(cr)
     logger.debug('{} lines'.format(total_lines))
 
   logger.debug('Creating index')
