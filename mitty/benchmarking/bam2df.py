@@ -194,8 +194,10 @@ def parse_read(read, mate, df, n):
   # a_pos = ((read.reference_id + 1) << 29) | read.pos
   # c_pos = (chrom << 29) | pos
 
-  df[mate + '_correct_pos'][n] = (chrom << 29) | pos
-  df[mate + '_aligned_pos'][n] = ((read.reference_id + 1) << 29) | pos
+  df[mate + '_correct_p1'][n] = (chrom << 29) | pos
+  df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
+  df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | pos
+  df[mate + '_aligned_p2'][n] = df[mate + '_aligned_p1'][n] + read.rlen
   df[mate + '_mapped'][n] = a_mapped | c_mapped
   df[mate + '_d_error'][n] = d
   df[mate + '_MQ'][n] = read.mapping_quality

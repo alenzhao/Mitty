@@ -71,8 +71,10 @@ def get_bdf_cols():
   qh = [('qname_hash', np.uint64)]  # allows us to find reads by qname. Immune to sort order etc.
   # Regular info for simulated BAMs. Needs to be duplicated for mate1 and mate2
   reg = [
-    ('correct_pos', np.uint64),  # these are computed as (chrom << 29) | pos
-    ('aligned_pos', np.uint64),
+    ('correct_p1', np.uint64),  # these are computed as (chrom << 29) | pos
+    ('correct_p2', np.uint64),
+    ('aligned_p1', np.uint64),
+    ('aligned_p2', np.uint64),
     ('mapped', np.uint8),        # 2bits,   b0 = 0,1 aligned is mapped or not b1 = 0,1 correct is mapped or not
     ('d_error', np.int64),
     ('MQ', np.uint8)
@@ -92,70 +94,3 @@ def graph_diagnostic_tags():
     ('YI', np.uint16),
     ('YQ', np.uint16)
   ]
-
-
-#
-# def get_cr_cols(data_only=False):
-#   """
-#   CR - associates reads with calls
-#   :return:
-#   """
-#   if data_only:
-#     return get_edf_data_cols()
-#
-#   return od(get_edf_data_cols().items() + get_bdf_cols().items())
-#
-#
-# read_info_cols = [
-#   'd_error',   # Alignment error metric
-#   'a_mapped',  # Aligned mapped status
-#   'a_p1',      # Aligned pos = chrom << 29 | pos
-#   'a_p2',      # End pos of read
-#   'a_cigar',
-#   'c_mapped',  # Correct mapped status
-#   'c_p1',      # Correct pos
-#   'c_p2',      # End pos of read
-#   'c_cigar',
-#   'MQ'
-# ]
-#
-# gral_tag_cols = [
-# #  'XG',
-#   'YG',
-#   'Yg',
-#   'XI',
-# #  'XB',
-#   'XE',
-#   'YX',
-#   'Yx',
-#   'YS',
-#   'YA',
-#   'YQ',
-#   'Ym',
-#   'UQ'
-# ]
-#
-# # These are the columns the bam2df file will have
-# bdf_cols = ['qname', 'qname_hash'] + [m + t for m in ['m1_', 'm2_'] for t in read_info_cols + gral_tag_cols]
-#
-#
-# # For the edf-bdf structure
-# # These are the cols from the call columns we will take
-# edf_bdf_call_cols = [
-#   'call_hash',
-#   'ROC_thresh',  # Is this worth it?
-#   'call_type',
-#   'variant_size'
-# ]
-# # And these are the cols from the read we will take
-# r_cols = ['d_error', 'MQ', 'UQ', 'YQ', 'YS', 'YA', 'Ym']
-# edf_bdf_read_cols = ['qname_hash'] + [m + t for m in ['m1_', 'm2_'] for t in r_cols] + ['align_flag']
-#
-#
-# # For now, not using a multiple table store, for simplicity, may revisit if things get slow/clunky
-# # Just trying out restricting the indexes
-# edf_bdf_data_cols = [
-#   'call_hash',
-#   'call_type',
-#   'variant_size'
-# ]
