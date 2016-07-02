@@ -22,12 +22,15 @@ def call_type_encoding(row):
 
 def get_edf_data_cols():
   """Note that the evcf is a CSV and does not really have data columns defined."""
+
+  # "NotImplementedError: indexing 64-bit unsigned integer columns is not supported yet, sorry"
+  # Which is why we don't use uint64. Not that we would need it ...
   return od([
     # These are computed columns that are useful for the CR structure
-    ('call_hash', np.uint64),
+    ('call_hash', np.int64),
     ('call_type', np.uint8),     # Computed from truth/query columns
-    ('call_p1', np.uint64),      # (chrom << 29) | pos
-    ('call_p2', np.uint64),      # (chrom << 29) | (pos + variant_size)
+    ('call_p1', np.int64),      # (chrom << 29) | pos
+    ('call_p2', np.int64),      # (chrom << 29) | (pos + variant_size)
     ('variant_size', np.int32),  # len(alt) - len(ref)
   ])
 
@@ -94,3 +97,7 @@ def graph_diagnostic_tags():
     ('YI', np.uint16),
     ('YQ', np.uint16)
   ]
+
+
+def get_edf_bdf_cols():
+  return od(get_edf_data_cols().items() + get_bdf_cols().items() + [('align_flag', np.uint8)])
