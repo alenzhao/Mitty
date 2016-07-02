@@ -8,6 +8,9 @@ cimport numpy as np
 import pandas as pd
 
 
+import mitty.benchmarking.dfcols as dfcols
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -69,7 +72,10 @@ def get_templates_over_calls(bam_df, eval_df):
   t1 = time.time()
   logger.debug('Matched {} templates against {} calls in {:0.3} s'.format(template_cnt, call_cnt, t1 - t0))
 
-  return call_read_rows
+  if len(call_read_rows):
+    return np.array(call_read_rows, dtype=dfcols.get_edf_bdf_cols().items())  # call_read_rows
+  else:
+    return None
 
 
 cdef advance_indexes(
@@ -127,7 +133,7 @@ cdef prepare_rows(
     read_idx_and_cond = np.array(npa, dtype=np.uintp)
     read_idx_and_cond = read_idx_and_cond[np.argsort(read_idx_and_cond[:, 0]), :]
 
-    call_s = eval_df.ix[call_index]
+    call_s = eval_df.iloc[call_index].tolist()
     last_read_idx = read_idx_and_cond[0, 0]
     align_flag = 0b0000
     for idx in range(read_idx_and_cond.shape[0]):
@@ -135,11 +141,13 @@ cdef prepare_rows(
         # this_read_type[flag_meanings[read_idx_and_cond[idx, 1]]] = 1
         align_flag |= read_idx_and_cond[idx, 1]
       else:
-        rows += [pd.concat((call_s, bam_df.iloc[last_read_idx], pd.Series({'align_flag': align_flag})))]
+        # rows += [pd.concat((call_s, bam_df.iloc[last_read_idx], pd.Series({'align_flag': align_flag})))]
+        rows += [tuple(call_s + bam_df.iloc[last_read_idx].tolist() + [align_flag])]
 
         last_read_idx = read_idx_and_cond[idx, 0]
         align_flag = read_idx_and_cond[idx, 1]
 
-    rows += [pd.concat((call_s, bam_df.iloc[last_read_idx], pd.Series({'align_flag': align_flag})))]
+    # rows += [pd.concat((call_s, bam_df.iloc[last_read_idx], pd.Series({'align_flag': align_flag})))]
+    rows += [tuple(call_s + bam_df.iloc[last_read_idx].tolist() + [align_flag])]
 
   return rows
