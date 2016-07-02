@@ -25,8 +25,8 @@ def get_templates_over_calls(bam_df, eval_df):
   call_read_rows = []
 
   cdef:
-    np.ndarray[long, ndim=1] c_p1, c_p2
-    np.ndarray[long, ndim=2] r_p1, r_p2
+    np.ndarray[np.uint64_t, ndim=1] c_p1, c_p2
+    np.ndarray[np.uint64_t, ndim=2] r_p1, r_p2
     np.ndarray[size_t, ndim=2] r_srt_idx
 
     size_t call_index = 0, call_cnt = len(eval_df), template_cnt = len(bam_df), idx
@@ -44,20 +44,19 @@ def get_templates_over_calls(bam_df, eval_df):
   # r_srt_idx are the indexes that sort each axis of r_p1 in ascending order
   # These are what we use to find the reads under each call
 
-  r_p1 = np.empty((bam_df.shape[0], 4), dtype=long)
-  r_p2 = np.empty((bam_df.shape[0], 4), dtype=long)
+  r_p1 = np.empty((bam_df.shape[0], 4), dtype=np.uint64)
+  r_p2 = np.empty((bam_df.shape[0], 4), dtype=np.uint64)
   r_srt_idx = np.empty((bam_df.shape[0], 4), dtype=np.uintp)
 
   cntr = 0
   for mate in ['m1', 'm2']:
-    for mode in ['a', 'c']:
+    for mode in ['aligned', 'correct']:
       p1_key = '{}_{}_p1'.format(mate, mode)  # e.g. 'm1_a_p1'
       p2_key = '{}_{}_p2'.format(mate, mode)  # e.g. 'm1_a_p2'
       r_p1[:, cntr] = bam_df[p1_key].values
       r_p2[:, cntr] = bam_df[p2_key].values
       r_srt_idx[:, cntr] = np.argsort(r_p1[:, cntr])
       cntr += 1
-
 
   for call_index in range(call_cnt):
     advance_indexes(
@@ -74,8 +73,8 @@ def get_templates_over_calls(bam_df, eval_df):
 
 
 cdef advance_indexes(
-  size_t call_index, np.ndarray[long, ndim=1] c_p1, np.ndarray[long, ndim=1] c_p2,
-  np.ndarray[long, ndim=2] r_p1, np.ndarray[long, ndim=2] r_p2,
+  size_t call_index, np.ndarray[np.uint64_t, ndim=1] c_p1, np.ndarray[np.uint64_t, ndim=1] c_p2,
+  np.ndarray[np.uint64_t, ndim=2] r_p1, np.ndarray[np.uint64_t, ndim=2] r_p2,
   np.ndarray[size_t, ndim=2] r_srt_idx,
   np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2, size_t template_cnt):
 
@@ -85,10 +84,15 @@ cdef advance_indexes(
       r_p1, r_p2, r_srt_idx,
       t_idx1, t_idx2, template_cnt, condition)
 
-cdef advance_index(size_t call_index, np.ndarray[long, ndim=1] c_p1, np.ndarray[long, ndim=1] c_p2,
-                   np.ndarray[long, ndim=2] r_p1, np.ndarray[long, ndim=2] r_p2,
+cdef advance_index(size_t call_index,
+                   np.ndarray[np.uint64_t, ndim=1] c_p1,
+                   np.ndarray[np.uint64_t, ndim=1] c_p2,
+                   np.ndarray[np.uint64_t, ndim=2] r_p1,
+                   np.ndarray[np.uint64_t, ndim=2] r_p2,
                    np.ndarray[size_t, ndim=2] r_srt_idx,
-                   np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2, size_t template_cnt,
+                   np.ndarray[size_t, ndim=1] t_idx1,
+                   np.ndarray[size_t, ndim=1] t_idx2,
+                   size_t template_cnt,
                    int condition):
   if t_idx1[condition] >= template_cnt:
     return
