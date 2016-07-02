@@ -9,7 +9,6 @@ import logging
 import time
 from multiprocessing import Pool
 import os
-import subprocess
 from hashlib import md5
 
 import numpy as np
@@ -72,17 +71,21 @@ def process_bam_parallel(qnamesortedbam, outh5, block_size=10000, threads=4, max
 
 def get_bam_sections(qnamesortedbam, block_size, max_templates=None):
   fp = pysam.AlignmentFile(qnamesortedbam)
-  for cnt, _ in enumerate(fp):
-    next(fp)
-    next(fp)
+  cnt = 0
+  while fp:
+    if max_templates is not None and cnt >= max_templates:
+      break
+
     if cnt % block_size == 0:
       yield {
         'bam_name': qnamesortedbam,
         'file_offset': fp.tell(),
         'block_size': block_size
       }
-    if max_templates is not None and cnt >= max_templates:
-      break
+
+    next(fp)
+    next(fp)
+    cnt += 1
 
 
 def process_bam_section_w(args):
@@ -121,11 +124,11 @@ def process_bam_section(args):
 
   for n in xrange(args['block_size']):
     r1 = next(fp, None)
-    if r1 is None:
+    if r1 is None:  # Need to truncate the array
       df = df[:n]
       break
-
     r2 = next(fp)
+
     parse_read(r1, 'm1', df, n)
     parse_read(r2, 'm2', df, n)
     df['qname_hash'][n] = int(md5(r1.qname).hexdigest()[:8], 16)
