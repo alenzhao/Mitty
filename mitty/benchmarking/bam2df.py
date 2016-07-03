@@ -83,7 +83,8 @@ def get_bam_sections(qnamesortedbam, block_size, max_templates=None):
         'block_size': block_size
       }
 
-    next_read(fp)
+    if next_read(fp) is None:
+      raise StopIteration
     next_read(fp)
     cnt += 1
 
