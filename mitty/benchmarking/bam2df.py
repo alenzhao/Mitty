@@ -83,9 +83,19 @@ def get_bam_sections(qnamesortedbam, block_size, max_templates=None):
         'block_size': block_size
       }
 
-    next(fp)
-    next(fp)
+    next_read(fp)
+    next_read(fp)
     cnt += 1
+
+
+def next_read(fp):
+  flag = 2048
+  while flag > 255:
+    r1 = next(fp, None)
+    if r1 is None:
+      return None
+    flag = r1.flag
+  return r1
 
 
 def process_bam_section_w(args):
@@ -123,11 +133,13 @@ def process_bam_section(args):
   fp.seek(args['file_offset'])
 
   for n in xrange(args['block_size']):
-    r1 = next(fp, None)
+    r1 = next_read(fp)
     if r1 is None:  # Need to truncate the array
       df = df[:n]
       break
-    r2 = next(fp)
+    r2 = next_read(fp)
+
+    assert r1.qname == r2.qname, 'Qnames do not match {} -- {}'.format(r1.qname, r2.qname)
 
     parse_read(r1, 'm1', df, n)
     parse_read(r2, 'm2', df, n)
