@@ -156,9 +156,7 @@ def parse_read(read, mate, df, n):
 
   chrom, pos = int(chrom), int(pos)
 
-  a_cigar = read.cigarstring
-
-  # WARNING: this destructively changes the orignal cigar string of the read, so we preseve it above
+  # WARNING: this destructively changes the orignal cigar string of the read, so we preserve it above
   # We do this to reuse the AlignedSegment object, which is expensive to create
   read.cigarstring = cigar
   cigar_ops = read.cigartuples
@@ -191,9 +189,7 @@ def parse_read(read, mate, df, n):
           elif op == 2:  # D
             correct_pos += cnt
 
-  # a_pos = ((read.reference_id + 1) << 29) | read.pos
-  # c_pos = (chrom << 29) | pos
-
+  df['chrom_copy'][n] = cpy
   df[mate + '_correct_p1'][n] = (chrom << 29) | pos
   df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
   df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | pos

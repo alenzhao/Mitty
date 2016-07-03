@@ -71,7 +71,10 @@ def get_bdf_cols():
   We index all the columns.
 
   """
-  qh = [('qname_hash', np.uint64)]  # allows us to find reads by qname. Immune to sort order etc.
+  qh = [
+    ('qname_hash', np.uint64),  # allows us to find reads by qname. Immune to sort order etc.
+    ('chrom_copy', np.uint8)    # Copy of chrom this read came from
+  ]
   # Regular info for simulated BAMs. Needs to be duplicated for mate1 and mate2
   reg = [
     ('correct_p1', np.uint64),  # these are computed as (chrom << 29) | pos
