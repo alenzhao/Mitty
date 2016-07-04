@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
+@click.version_option()
 @click.argument('qnamesortedbam')
 @click.argument('outh5')
 @click.option('--paired-reads/--single-end-reads', default=True, help='Are these paired end or single end reads')

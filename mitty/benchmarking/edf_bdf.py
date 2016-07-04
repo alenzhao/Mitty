@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
+@click.version_option()
 @click.argument('evdf')
 @click.argument('bdf')
 @click.argument('outh5')
