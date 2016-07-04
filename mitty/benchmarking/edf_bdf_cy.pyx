@@ -28,7 +28,7 @@ def get_templates_over_calls(bam_df, eval_df):
   call_read_rows = []
 
   cdef:
-    np.ndarray[np.uint64_t, ndim=1] c_p1, c_p2
+    np.ndarray[np.int64_t, ndim=1] c_p1, c_p2
     np.ndarray[np.uint64_t, ndim=2] r_p1, r_p2
     np.ndarray[size_t, ndim=2] r_srt_idx
 
@@ -79,7 +79,7 @@ def get_templates_over_calls(bam_df, eval_df):
 
 
 cdef advance_indexes(
-  size_t call_index, np.ndarray[np.uint64_t, ndim=1] c_p1, np.ndarray[np.uint64_t, ndim=1] c_p2,
+  size_t call_index, np.ndarray[np.int64_t, ndim=1] c_p1, np.ndarray[np.int64_t, ndim=1] c_p2,
   np.ndarray[np.uint64_t, ndim=2] r_p1, np.ndarray[np.uint64_t, ndim=2] r_p2,
   np.ndarray[size_t, ndim=2] r_srt_idx,
   np.ndarray[size_t, ndim=1] t_idx1, np.ndarray[size_t, ndim=1] t_idx2, size_t template_cnt):
@@ -91,8 +91,8 @@ cdef advance_indexes(
       t_idx1, t_idx2, template_cnt, condition)
 
 cdef advance_index(size_t call_index,
-                   np.ndarray[np.uint64_t, ndim=1] c_p1,
-                   np.ndarray[np.uint64_t, ndim=1] c_p2,
+                   np.ndarray[np.int64_t, ndim=1] c_p1,
+                   np.ndarray[np.int64_t, ndim=1] c_p2,
                    np.ndarray[np.uint64_t, ndim=2] r_p1,
                    np.ndarray[np.uint64_t, ndim=2] r_p2,
                    np.ndarray[size_t, ndim=2] r_srt_idx,
