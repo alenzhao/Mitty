@@ -51,6 +51,12 @@ def get_templates_over_calls(bam_df, eval_df):
   r_p2 = np.empty((bam_df.shape[0], 4), dtype=np.uint64)
   r_srt_idx = np.empty((bam_df.shape[0], 4), dtype=np.uintp)
 
+  # This loop gives us the align_flag bit field meanings
+  # 0b0001      m1_aligned
+  # 0b0010      m1_correct
+  # 0b0100      m2_aligned
+  # 0b1000      m2_correct
+
   cntr = 0
   for mate in ['m1', 'm2']:
     for mode in ['aligned', 'correct']:
