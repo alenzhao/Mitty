@@ -286,6 +286,6 @@ def sort_and_index_bam(bamfile):
   # samtools sort adds a '.bam' to the end of the file name.
   _, t_bam = tempfile.mkstemp(suffix='bam', dir='./')  # Safer to do it in the user directory
   os.rename(bamfile, t_bam)
-  pysam.sort(t_bam, os.path.splitext(bamfile)[0])
-  pysam.index(bamfile)
+  pysam.sort(t_bam.encode('ascii'), os.path.splitext(bamfile)[0].encode('ascii'))
+  pysam.index(bamfile.encode('ascii'))
   os.remove(t_bam)
