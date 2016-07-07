@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @click.argument('out_prefix')
 @click.option('-v', count=True, help='Verbosity level')
 def cli(a_fname, b_fname, out_prefix, v):
+  """Set operations on two edf or crdf files."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
@@ -32,8 +33,8 @@ def set_operations(a_fname, b_fname, call_type='FP', out_prefix='setops'):
   :param out_prefix:
   :return:
   """
-  sA, f_typeA = get_qname_set(a_fname, call_type)
-  sB, f_typeB = get_qname_set(b_fname, call_type)
+  sA, f_typeA = get_call_hash_set(a_fname, call_type)
+  sB, f_typeB = get_call_hash_set(b_fname, call_type)
 
   # A - B
   write_out_data(a_fname,
@@ -43,12 +44,6 @@ def set_operations(a_fname, b_fname, call_type='FP', out_prefix='setops'):
 
   # A ^ B
   fname, f_type = (b_fname, f_typeB) if f_typeA == 'edf' and f_typeB == 'crdf' else (a_fname, f_typeA)
-  # if f_typeA == 'edf' and f_typeB == 'crdf':
-  #   fname = b_fname
-  #   f_type = f_typeB
-  # else:
-  #   fname = a_fname
-  #   f_type = f_typeA
   write_out_data(fname,
                  dst_fname='{}-a&b-{}.{}.h5'.format(out_prefix, call_type, f_type),
                  call_hash_set=sA.intersection(sB),
@@ -61,7 +56,7 @@ def set_operations(a_fname, b_fname, call_type='FP', out_prefix='setops'):
                  f_type=f_typeB)
 
 
-def get_qname_set(fname, call_type='FP'):
+def get_call_hash_set(fname, call_type='FP'):
   """
 
   :param fname:
@@ -85,7 +80,7 @@ def get_qname_set(fname, call_type='FP'):
     store.select(
       f_type, columns=['call_hash'],
       where="call_type={}".format(dfcols.call_type[call_type])
-    )['call_hash'].unique())
+    )['call_hash'])
 
   store.close()
 
@@ -96,7 +91,6 @@ def get_qname_set(fname, call_type='FP'):
 
 
 def write_out_data(src_fname, dst_fname, call_hash_set, f_type):
-
   logger.debug('Writing out {} ...'.format(dst_fname))
   t0 = time.time()
   pd.read_hdf(src_fname, f_type,
