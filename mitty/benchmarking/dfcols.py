@@ -11,6 +11,14 @@ def call_hash(row):
   return int(md5(','.join([row['#CHROM'], str(row['POS']), row['REF'], row['ALT']])).hexdigest()[:8], 16)
 
 
+call_type = {
+  'TP': 0,
+  'FN': 1,
+  'FP': 2
+}
+
+
+# Replace this function with call_type dict
 def call_type_encoding(row):
   if row['truth'] == 'TP':
     return 0
@@ -72,7 +80,7 @@ def get_bdf_cols():
 
   """
   qh = [
-    ('qname_hash', np.uint64),  # allows us to find reads by qname. Immune to sort order etc.
+    ('qname_hash', np.int64),  # allows us to find reads by qname. Immune to sort order etc.
     ('chrom_copy', np.uint8)    # Copy of chrom this read came from
   ]
   # Regular info for simulated BAMs. Needs to be duplicated for mate1 and mate2
@@ -104,3 +112,12 @@ def graph_diagnostic_tags():
 
 def get_edf_bdf_cols():
   return od(get_edf_data_cols().items() + get_bdf_cols().items() + [('align_flag', np.uint8)])
+
+
+def get_edf_bdf_data_cols():
+  """Almost the same as ed_data_cols but with qname_hash added."""
+  return od(get_edf_data_cols().items() + [('qname_hash', get_bdf_cols()['qname_hash'])])
+
+
+
+

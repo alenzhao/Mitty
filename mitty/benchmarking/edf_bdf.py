@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 @click.argument('outh5')
 @click.option('-t', default=4, help='Threads')
 @click.option('--block-size', default=100000, help='Block size')
-@click.option('--max-blocks-to-do', type=int, help='Maximum blocks to do (for debugging, single thread only)')
+@click.option('--max-templates', type=int, help='Maximum templates to do (for debugging, rounded to the smallest block_size increment)')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(evdf, bdf, outh5, t, block_size, max_blocks_to_do, v):
+def cli(evdf, bdf, outh5, t, block_size, max_templates, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -40,21 +40,24 @@ def cli(evdf, bdf, outh5, t, block_size, max_blocks_to_do, v):
     logger.warning('Output file {} already exists, removing'.format(outh5))
     os.remove(outh5)
 
-  process(evdf, bdf, outh5, t, block_size, max_blocks_to_do)
+  process(evdf, bdf, outh5, t, block_size, max_templates)
   # sort_df(unsorted_file, outcsv)
 
 
-def bdf_iter(edf, bdf_st, block_size, max_blks=None):
+def bdf_iter(edf, bdf_st, block_size, max_templates=None):
   nrows = bdf_st.get_storer('bdf').table.nrows
 
-  for offset in xrange(0, nrows if max_blks is None else min(nrows, max_blks * block_size), block_size):
+  for offset in xrange(
+    0,
+    nrows if max_templates is None else min(nrows, max_templates),
+    block_size):
     yield {
       'bdf': bdf_st.select('bdf', start=offset, stop=offset + block_size),
       'edf': edf
     }
 
 
-def process(edf_name, bdf_name, outh5, t, block_size, max_blocks_to_do=None):
+def process(edf_name, bdf_name, outh5, t, block_size, max_templates=None):
 
   edf = pd.read_hdf(edf_name, 'edf', columns=dfcols.get_edf_data_cols().keys())  # We only need these ones here
   logger.debug('Loaded {}'.format(edf_name))
@@ -67,7 +70,7 @@ def process(edf_name, bdf_name, outh5, t, block_size, max_blocks_to_do=None):
   st_out = pd.HDFStore(outh5, mode='a', complevel=9, complib="blosc", format='t')
 
   total_lines = 0
-  for cr in p.imap_unordered(get_all_templates_over_calls, bdf_iter(edf, bdf_st, block_size, max_blocks_to_do)):
+  for cr in p.imap_unordered(get_all_templates_over_calls, bdf_iter(edf, bdf_st, block_size, max_templates)):
     if cr is not None:
       st_out.append('crdf', pd.DataFrame(cr),
                     data_columns=dfcols.get_edf_data_cols().keys(), index=False)
@@ -82,6 +85,9 @@ def process(edf_name, bdf_name, outh5, t, block_size, max_blocks_to_do=None):
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {}/{} templates/calls ({:0.10} templates/s) with {} threads'.
                format(t1 - t0, nrows, len(edf), nrows / (t1 - t0), t))
+
+  # Store header (with sequence meta info) here, so we can write out a VCF with the call information
+  # as needed for intersection/difference.
 
 
 def get_all_templates_over_calls(args):

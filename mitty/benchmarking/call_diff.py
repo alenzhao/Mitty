@@ -90,7 +90,7 @@ def get_qname_set(fname, call_type='FP'):
   store.close()
 
   t1 = time.time()
-  logger.debug('... took {:10.2} s'.format(t1 - t0))
+  logger.debug('... took {:0.5} s'.format(t1 - t0))
 
   return data, f_type
 
@@ -101,9 +101,12 @@ def write_out_data(src_fname, dst_fname, call_hash_set, f_type):
   t0 = time.time()
   pd.read_hdf(src_fname, f_type,
               where=pd.Term('call_hash','=', list(call_hash_set)), mode='r').\
-    to_hdf(dst_fname, f_type, format='t', mode='w', complevel=9, complib='blosc')
+    to_hdf(
+    dst_fname,
+    f_type, data_columns=dfcols.get_edf_bdf_data_cols().keys(),
+    format='t', mode='w', complevel=9, complib='blosc')
   t1 = time.time()
-  logger.debug('... took {:10.2} s'.format(t1 - t0))
+  logger.debug('... took {:0.5} s'.format(t1 - t0))
 
 
 if __name__ == '__main__':

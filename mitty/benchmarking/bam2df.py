@@ -69,6 +69,8 @@ def process_bam_parallel(qnamesortedbam, outh5, block_size=10000, threads=4, max
   st.create_table_index('bdf', optlevel=9, kind='full')
   logger.debug('Took {} sec to index file'.format(t2 - t1))
 
+  # Read header and store here, so we can access the BAM header information - useful
+
 
 def get_bam_sections(qnamesortedbam, block_size, max_templates=None):
   fp = pysam.AlignmentFile(qnamesortedbam)
