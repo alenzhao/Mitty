@@ -1,6 +1,8 @@
 import click
 import logging
 import time
+import json
+import os
 
 import pandas as pd
 
@@ -20,8 +22,18 @@ def cli(a_fname, b_fname, out_prefix, v):
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
+  summary = {
+    'meta': {
+      'A': os.path.basename(a_fname),
+      'B': os.path.basename(b_fname)
+    }
+  }
   for call_type in ['TP', 'FN', 'FP']:
-    set_operations(a_fname, b_fname, call_type=call_type, out_prefix=out_prefix)
+    summary[call_type] = set_operations(
+      a_fname, b_fname, call_type=call_type, out_prefix=out_prefix)
+
+  json.dump(summary, open(out_prefix + '-summary.json', 'w'))
+  pretty_print_summary(summary, out_prefix + '-summary.txt')
 
 
 def set_operations(a_fname, b_fname, call_type='FP', out_prefix='setops'):
@@ -36,24 +48,36 @@ def set_operations(a_fname, b_fname, call_type='FP', out_prefix='setops'):
   sA, f_typeA = get_call_hash_set(a_fname, call_type)
   sB, f_typeB = get_call_hash_set(b_fname, call_type)
 
+  summary = {
+    'A': len(sA)
+  }
+
   # A - B
+  sA_sB = sA - sB
+  summary['A - B'] = len(sA_sB)
   write_out_data(a_fname,
                  dst_fname='{}-a-b-{}.{}.h5'.format(out_prefix, call_type, f_typeA),
-                 call_hash_set=sA - sB,
+                 call_hash_set=sA_sB,
                  f_type=f_typeA)
 
   # A ^ B
+  sAB = sA.intersection(sB)
+  summary['A & B'] = len(sAB)
   fname, f_type = (b_fname, f_typeB) if f_typeA == 'edf' and f_typeB == 'crdf' else (a_fname, f_typeA)
   write_out_data(fname,
                  dst_fname='{}-a&b-{}.{}.h5'.format(out_prefix, call_type, f_type),
-                 call_hash_set=sA.intersection(sB),
+                 call_hash_set=sAB,
                  f_type=f_type)
 
   # B - A
+  sB_sA = sB - sA
+  summary['B - A'] = len(sB_sA)
   write_out_data(b_fname,
                  dst_fname='{}-b-a-{}.{}.h5'.format(out_prefix, call_type, f_typeB),
-                 call_hash_set=sB - sA,
+                 call_hash_set=sB_sA,
                  f_type=f_typeB)
+
+  return summary
 
 
 def get_call_hash_set(fname, call_type='FP'):
@@ -101,6 +125,17 @@ def write_out_data(src_fname, dst_fname, call_hash_set, f_type):
     format='t', mode='w', complevel=9, complib='blosc')
   t1 = time.time()
   logger.debug('... took {:0.5} s'.format(t1 - t0))
+
+
+def pretty_print_summary(summary, fname):
+  header = ['TP', 'FN', 'FP']
+  with open(fname, 'w') as fp:
+    fp.write('A: {}\n'.format(summary['meta']['A']))
+    fp.write('B: {}\n'.format(summary['meta']['B']))
+    fp.write('------------------------------------\n')
+    fp.write('\t'.join([''] + header) + '\n')
+    for op in ['A', 'A - B', 'A & B', 'B - A']:
+      fp.write('\t'.join([op] + [str(summary[h][op]) for h in header]) + '\n')
 
 
 if __name__ == '__main__':
