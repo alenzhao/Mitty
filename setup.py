@@ -33,6 +33,7 @@ setup(
                           'bam2df = mitty.benchmarking.bam2df:cli',
                           'evalvcf2df = mitty.benchmarking.evalvcf2df:cli',
                           'edf-bdf = mitty.benchmarking.edf_bdf:cli',
+                          'call-diff = mitty.benchmarking.call_diff:cli',
                           # The stuff below may be deprecated
                           'perfectbam = mitty.benchmarking.perfectbam:cli',
                           'mismat = mitty.benchmarking.mismat:cli',
