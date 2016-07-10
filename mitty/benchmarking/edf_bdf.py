@@ -26,10 +26,11 @@ logger = logging.getLogger(__name__)
 @click.argument('bdf')
 @click.argument('outh5')
 @click.option('-t', default=4, help='Threads')
-@click.option('--block-size', default=100000, help='Block size')
-@click.option('--max-templates', type=int, help='Maximum templates to do (for debugging, rounded to the smallest block_size increment)')
+@click.option('--block-size', default=1000000, help='Block size')
+@click.option('--max-templates', type=int, help='Maximum templates to do (for debugging, quantized to "block_size" increments)')
+@click.option('--call-hash', type=int, help='Compute edf-bdf for this call only (for debugging)')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(evdf, bdf, outh5, t, block_size, max_templates, v):
+def cli(evdf, bdf, outh5, t, block_size, max_templates, call_hash, v):
   """Associate reads in a BAM with variant calls."""
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
@@ -40,8 +41,7 @@ def cli(evdf, bdf, outh5, t, block_size, max_templates, v):
     logger.warning('Output file {} already exists, removing'.format(outh5))
     os.remove(outh5)
 
-  process(evdf, bdf, outh5, t, block_size, max_templates)
-  # sort_df(unsorted_file, outcsv)
+  process(evdf, bdf, outh5, t, block_size, max_templates, call_hash)
 
 
 def bdf_iter(edf, bdf_st, block_size, max_templates=None):
@@ -57,10 +57,13 @@ def bdf_iter(edf, bdf_st, block_size, max_templates=None):
     }
 
 
-def process(edf_name, bdf_name, outh5, t, block_size, max_templates=None):
+def process(edf_name, bdf_name, outh5, t, block_size, max_templates=None, call_hash=None):
 
   edf = pd.read_hdf(edf_name, 'edf', columns=dfcols.get_edf_data_cols().keys())  # We only need these ones here
   logger.debug('Loaded {}'.format(edf_name))
+  if call_hash is not None:
+    edf = edf[edf['call_hash'] == call_hash]
+    logger.warning('Only processing call with call_hash {}'.format(call_hash))
 
   bdf_st = pd.HDFStore(bdf_name, mode='r')
   nrows = bdf_st.get_storer('bdf').table.nrows
@@ -75,7 +78,7 @@ def process(edf_name, bdf_name, outh5, t, block_size, max_templates=None):
       st_out.append('crdf', pd.DataFrame(cr),
                     data_columns=dfcols.get_edf_data_cols().keys(), index=False)
 
-    total_lines += len(cr)
+      total_lines += len(cr)
     logger.debug('{} lines'.format(total_lines))
 
   logger.debug('Creating index')
