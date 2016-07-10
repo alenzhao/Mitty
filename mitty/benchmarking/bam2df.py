@@ -166,11 +166,11 @@ def parse_read(read, mate, df, n):
 
   # Parse qname
   if read.is_read1:
-    rs, chrom, cpy, ro, pos, rl, cigar, ro_m, pos_m, rl_m, cigar_m = read.qname.split('|')
+    rs, chrom_s, cpy_s, ro, pos_s, rl, cigar, ro_m, pos_m, rl_m, cigar_m = read.qname.split('|')
   else:
-    rs, chrom, cpy, ro_m, pos_m, rl_m, cigar_m, ro, pos, rl, cigar = read.qname.split('|')
+    rs, chrom_s, cpy_s, ro_m, pos_m, rl_m, cigar_m, ro, pos_s, rl, cigar = read.qname.split('|')
 
-  chrom, pos = int(chrom), int(pos)
+  sim_corr_chrom, sim_corr_pos = int(chrom_s), int(pos_s)
 
   # WARNING: this destructively changes the orignal cigar string of the read, so we preserve it above
   # We do this to reuse the AlignedSegment object, which is expensive to create
@@ -185,16 +185,16 @@ def parse_read(read, mate, df, n):
     d = 1000000000
   else:
     a_mapped = 0b01
-    if read.reference_id != chrom - 1:
+    if read.reference_id != sim_corr_chrom - 1:
       d = 1000000000
     else:  # Analyze the correctness by checking each breakpoint
       # Corner case, our special cigar for indicating reads inside an insertion
       # We use S or I for this
       if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
-        d = read.pos - pos
+        d = read.pos - sim_corr_pos
         c_mapped = 0  # In a long insert
       else:  # Go through breakpoints
-        correct_pos = pos
+        correct_pos = sim_corr_pos
         d = read.pos - correct_pos
         for op, cnt in cigar_ops:
           if op in [0, 7, 8]:  # M, =, X
@@ -206,9 +206,9 @@ def parse_read(read, mate, df, n):
             correct_pos += cnt
 
   df['chrom_copy'][n] = cpy
-  df[mate + '_correct_p1'][n] = (chrom << 29) | pos
+  df[mate + '_correct_p1'][n] = (sim_corr_chrom << 29) | sim_corr_pos
   df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
-  df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | pos
+  df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | read.pos
   df[mate + '_aligned_p2'][n] = df[mate + '_aligned_p1'][n] + read.rlen
   df[mate + '_mapped'][n] = a_mapped | c_mapped
   df[mate + '_d_error'][n] = d
