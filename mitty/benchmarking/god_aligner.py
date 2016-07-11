@@ -83,7 +83,7 @@ def read_fastq(fastq, paired_end, in_queue, max_templates=None):
   :return:
   """
   f_size = get_fastq_size(fastq)
-  read_notification_interval = 1000000
+  read_notification_interval = 100000
   read_counter = 0
   t0 = time.time()
   with open(fastq, 'r') as fp:
@@ -98,7 +98,7 @@ def read_fastq(fastq, paired_end, in_queue, max_templates=None):
         template.append(read)
         read_counter += 1
         if read_counter % read_notification_interval == 0:
-          logger.debug('Reads done {} ({} reads/s), {} MB of {} MB'.format(read_counter, read_counter/(time.time() - t0), fp.tell(), f_size))
+          logger.debug('Processed {} reads ({:0.7} reads/s, {:0.5}/{:0.5} MB)'.format(read_counter, read_counter/(time.time() - t0), fp.tell()/1e6, f_size/1e6))
         read = []
         line_cnt = 4
         template_count -= 1
@@ -108,7 +108,7 @@ def read_fastq(fastq, paired_end, in_queue, max_templates=None):
           template_count = 2 if paired_end else 1
 
   t1 = time.time()
-  logger.debug('Took {} s to process {} reads ({} reads/s)'.format(t1 - t0, read_counter, read_counter/(t1 - t0)))
+  logger.debug('Took {:0.5}s to process {} reads ({:0.7} reads/s)'.format(t1 - t0, read_counter, read_counter/(t1 - t0)))
 
 
 def process_worker(bam_fname, bam_hdr, in_queue):
