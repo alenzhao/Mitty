@@ -205,7 +205,7 @@ def parse_read(read, mate, df, n):
           elif op == 2:  # D
             correct_pos += cnt
 
-  df['chrom_copy'][n] = cpy
+  df['chrom_copy'][n] = int(cpy_s)
   df[mate + '_correct_p1'][n] = (sim_corr_chrom << 29) | sim_corr_pos
   df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
   df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | read.pos
