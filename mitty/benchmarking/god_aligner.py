@@ -5,6 +5,7 @@ import time
 import base64
 import logging
 from multiprocessing import Process, Queue, current_process, freeze_support
+import subprocess
 
 import pysam
 import click
@@ -19,7 +20,7 @@ __process_stop_code__ = 'SETECASTRONOMY'
 
 @click.command()
 @click.version_option()
-@click.argument('hdrf', type=click.Path(exists=True))
+@click.argument('fasta_ann', type=click.Path(exists=True))
 @click.argument('fastq', type=click.Path(exists=True))
 @click.argument('bam', type=click.Path())
 @click.option('-t', default=2, help='Number of threads')
@@ -27,11 +28,15 @@ __process_stop_code__ = 'SETECASTRONOMY'
 @click.option('--interleaved-fq', is_flag=True, default=True, help='Is the FASTQ an interleaved. Ignored if fastq2 is supplied')
 @click.option('--sample-name', help="Name of sample", default='S')
 @click.option('--block-size', default=1000000, help='Maximum number of templates held in memory')
+@click.option('--max-templates', type=int, help='Maximum number of templates to process (For debugging)')
 @click.option('-v', count=True, help='Verbosity level')
-def cli(hdrf, fastq, bam, t, fastq2, sample_name, interleaved_fq, block_size, v):
-  """Given a header structure and FAST made of simulated reads,
+def cli(fasta_ann, fastq, bam, t, fastq2, sample_name, interleaved_fq, block_size, max_templates, v):
+  """Given a FASTA.ann file and FASTQ made of simulated reads,
   construct a perfectly aligned "god" BAM from them.
-  This is useful for testing variant callers."""
+  This is useful for testing variant callers.
+
+  The program uses the fasta.ann file to construct the BAM header
+  """
   level = logging.DEBUG if v > 0 else logging.WARNING
   logging.basicConfig(level=level)
 
@@ -39,30 +44,13 @@ def cli(hdrf, fastq, bam, t, fastq2, sample_name, interleaved_fq, block_size, v)
     raise RuntimeError('Sorry, non-interleaved FASTQ reading not implemented yet')
 
   rg_id = base64.b64encode(' '.join(sys.argv))
-  bam_hdr = construct_header(json.load(open(hdrf, 'r')), rg_id=rg_id, sample=sample_name)
+  bam_hdr = construct_header(fasta_ann, rg_id=rg_id, sample=sample_name)
 
-  in_queue = Queue()
-
-  # Start worker processes
-  logger.debug('Starting {} threads'.format(t))
-  for i in range(t):
-    Process(target=process_worker, args=('frag-{:03}-{}'.format(i, bam), bam_hdr, in_queue)).start()
-
-  # Burn through file
-  logger.debug('Starting to read FASTQ file')
-  read_fastq(fastq, True, in_queue, max_templates=None)
-
-  # Tell child processes to stop
-  logger.debug('Stopping child processes')
-  for i in range(t):
-    in_queue.put(__process_stop_code__)
+  process_multi_threaded(fastq, bam, bam_hdr, t, max_templates)
+  # process_single_threaded(fastq, bam, bam_hdr, max_templates)  (Only for debugging)
 
 
-def get_fastq_size(fastq):
-  return os.stat(fastq).st_size
-
-
-def construct_header(seq_metadata, rg_id, sample='S'):
+def construct_header(fasta_ann, rg_id, sample='S'):
   return {
     'HD': {'VN': '1.0'},
     'PG': [{'CL': ' '.join(sys.argv),
@@ -70,8 +58,60 @@ def construct_header(seq_metadata, rg_id, sample='S'):
             'PN': 'god-aligner',
             'VN': __version__}],
     'RG': [{'ID': rg_id, 'SM': sample}],
-    'SQ': seq_metadata
+    'SQ': parse_ann(fasta_ann)
   }
+
+
+def parse_ann(fn):
+  """Given a fasta.ann file name parse it."""
+  logger.debug('Parsing {} for sequence header information'.format(fn))
+  ln = open(fn, 'r').readlines()[1:]  # Don't need the first line
+  return [
+    {
+      'SN': ln[n].split()[1],
+      'LN': int(ln[n + 1].split()[1])
+    }
+  for n in range(0, len(ln), 2)]
+
+
+def process_multi_threaded(fastq, bam, bam_hdr, t, max_templates):
+  in_queue = Queue()
+
+  # Start worker processes
+  logger.debug('Starting {} threads'.format(t))
+  file_fragments = ['frag-{:03}-{}'.format(i, bam) for i in range(t)]
+  p_list = [Process(target=process_worker, args=(file_fragments[i], bam_hdr, in_queue)) for i in range(t)]
+  for p in p_list:
+    p.start()
+
+  # Burn through file
+  logger.debug('Starting to read FASTQ file')
+  read_fastq(fastq, True, in_queue, max_templates=max_templates)
+
+  # Tell child processes to stop
+  logger.debug('Stopping child processes')
+  for i in range(t):
+    in_queue.put(__process_stop_code__)
+
+  # Wait for them to finish
+  for p in p_list:
+    p.join()
+
+  # Get samtools to combine the bams together
+  samtools_cat(bam, file_fragments)
+
+
+def process_single_threaded(fastq, bam, bam_hdr, max_templates):
+  in_queue = Queue()
+
+  # Burn through file
+  logger.debug('Starting to read FASTQ file')
+  read_fastq(fastq, True, in_queue, max_templates=max_templates)
+  # Place the magic stop code
+  in_queue.put(__process_stop_code__)
+
+  # Process reads
+  process_worker(bam, bam_hdr, in_queue)
 
 
 def read_fastq(fastq, paired_end, in_queue, max_templates=None):
@@ -82,33 +122,36 @@ def read_fastq(fastq, paired_end, in_queue, max_templates=None):
   :param max_templates:
   :return:
   """
-  f_size = get_fastq_size(fastq)
-  read_notification_interval = 100000
-  read_counter = 0
+  f_size = os.stat(fastq).st_size
+  template_notification_interval = 100000
+  template_counter = 0
   t0 = time.time()
   with open(fastq, 'r') as fp:
     template = []
     read = []
-    template_count = 2 if paired_end else 1
+    reads_in_template_count = 2 if paired_end else 1
     line_cnt = 4
     for ln in fp:
       read.append(ln[:-1])
       line_cnt -= 1
       if line_cnt == 0:
         template.append(read)
-        read_counter += 1
-        if read_counter % read_notification_interval == 0:
-          logger.debug('Processed {} reads ({:0.7} reads/s, {:0.5}/{:0.5} MB)'.format(read_counter, read_counter/(time.time() - t0), fp.tell()/1e6, f_size/1e6))
         read = []
         line_cnt = 4
-        template_count -= 1
-        if template_count == 0:
+        reads_in_template_count -= 1
+        if reads_in_template_count == 0:
           in_queue.put(template)
+          template_counter += 1
+          if template_counter % template_notification_interval == 0:
+            logger.debug('Processed {} templates ({:0.7} templates/s, {:0.5}/{:0.5} MB)'.format(template_counter, template_counter/(time.time() - t0), fp.tell()/1e6, f_size/1e6))
+          if max_templates is not None and template_counter >= max_templates:
+            logger.debug('Stopping at {} templates, as asked for'.format(max_templates))
+            break
           template = []
-          template_count = 2 if paired_end else 1
+          reads_in_template_count = 2 if paired_end else 1
 
   t1 = time.time()
-  logger.debug('Took {:0.5}s to process {} reads ({:0.7} reads/s)'.format(t1 - t0, read_counter, read_counter/(t1 - t0)))
+  logger.debug('Took {:0.5}s to process {} templates ({:0.7} tmpl/s)'.format(t1 - t0, template_counter, template_counter/(t1 - t0)))
 
 
 def process_worker(bam_fname, bam_hdr, in_queue):
@@ -145,6 +188,8 @@ def process_template(template, fp):
     rs, chrom_s, cpy_s, ro_s1, pos_s1, rl_s1, cigar1 = qname.split('|')
 
   r1 = pysam.AlignedSegment()
+  r1.qname = qname
+
   r1.reference_id = int(chrom_s) - 1
   r1.pos = int(pos_s1)
   r1.cigarstring = cigar1
@@ -158,12 +203,14 @@ def process_template(template, fp):
   # We use S or I for this
   if cigar_ops[0][0] in [1, 4] and len(cigar_ops) == 1:  # S,I
     r1.cigarstring = '{}I'.format(r1.rlen)
+    r1.is_unmapped = 1
 
   if paired_end:
     r1.is_paired = True
     r1.is_read1 = True
 
     r2 = pysam.AlignedSegment()
+    r2.qname = qname
     r2.reference_id = int(chrom_s) - 1
     r2.pos = int(pos_s2)
     r2.cigarstring = cigar2
@@ -191,6 +238,14 @@ def process_template(template, fp):
     fp.write(r2)
   else:
     fp.write(r1)
+
+
+def samtools_cat(bam, file_fragments):
+  cmd = ['samtools', 'cat', '-o', bam] + file_fragments
+  subprocess.call(cmd)
+  # Now cleanup the fragments
+  # for frag in file_fragments:
+  #   os.remove(frag)
 
 
 if __name__ == "__main__":
