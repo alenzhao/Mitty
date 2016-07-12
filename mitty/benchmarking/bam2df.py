@@ -208,8 +208,8 @@ def parse_read(read, mate, df, n):
   df['chrom_copy'][n] = int(cpy_s)
   df[mate + '_correct_p1'][n] = (sim_corr_chrom << 29) | sim_corr_pos
   df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
-  df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | read.pos
-  df[mate + '_aligned_p2'][n] = df[mate + '_aligned_p1'][n] + read.rlen
+  df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | read.pos if a_mapped else 0
+  df[mate + '_aligned_p2'][n] = df[mate + '_aligned_p1'][n] + read.rlen if a_mapped else 0
   df[mate + '_mapped'][n] = a_mapped | c_mapped
   df[mate + '_d_error'][n] = d
   df[mate + '_MQ'][n] = read.mapping_quality
