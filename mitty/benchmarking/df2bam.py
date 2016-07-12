@@ -3,12 +3,13 @@ import logging
 import time
 from hashlib import md5
 import os
-from copy import deepcopy
+from string import translate
 
 import pandas as pd
 import pysam
 
 import mitty.lib.mio as mio  # For the bam sort and index function
+from mitty.lib import DNA_complement
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def writeout_bam(qnames, df, origbam, outbam):
   for r in fp_in:
     q_h = int(md5(r.qname).hexdigest()[:8], 16)
     if q_h in qnames:
-      row = df[df['qname_hash'] == q_h].iloc[0]
+      row = df[df['qname_hash'] == q_h].iloc[0]  # This should pull out one entry only anyway
       mate = 'm1' if r.is_read1 else 'm2'  # Non paired end?
       Xd = row[mate + '_d_error']
       r.set_tag('Xd', Xd)
@@ -84,6 +85,18 @@ def writeout_bam(qnames, df, origbam, outbam):
       r.reference_id = c_chrom - 1
       r.pos = c_pos
       r.is_unmapped = not (row[mate + '_mapped'] & 0b10) >> 1
+
+      # The tricky business of retrieving strand (fwd/bckwd) and fixing the read sequence and quality
+      # If the strandedness was incorrect in the original alignment
+      ro = (row['copy_and_strand'] >> 2) & 0b1 if r.is_read1 else (row['copy_and_strand'] >> 3) & 0b1
+      if r.is_reverse != ro:  # The complement is not consistent
+        qual = r.qual[::-1]
+        r.seq = translate(r.seq, DNA_complement)[::-1]
+        r.qual = qual
+
+      r.is_reverse = ro
+      r.mate_is_reverse = 1 - ro
+
       fp_out_per.write(r)  # This writes out the read placed in the correct location
 
       ctr += 1

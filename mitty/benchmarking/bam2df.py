@@ -145,8 +145,8 @@ def process_bam_section(args):
 
     assert r1.qname == r2.qname, 'Qnames do not match {} -- {}'.format(r1.qname, r2.qname)
 
-    parse_read(r1, 'm1', df, n)
-    parse_read(r2, 'm2', df, n)
+    parse_read(r1 if r1.is_read1 else r2, 'm1', df, n)
+    parse_read(r2 if r1.is_read1 else r1, 'm2', df, n)
     df['qname_hash'][n] = int(md5(r1.qname).hexdigest()[:8], 16)
 
   return df
@@ -166,9 +166,9 @@ def parse_read(read, mate, df, n):
 
   # Parse qname
   if read.is_read1:
-    rs, chrom_s, cpy_s, ro, pos_s, rl, cigar, ro_m, pos_m, rl_m, cigar_m = read.qname.split('|')
+    rs, chrom_s, cpy_s, ro1_s, pos_s, rl, cigar, ro2_s, pos_m, rl_m, cigar_m = read.qname.split('|')
   else:
-    rs, chrom_s, cpy_s, ro_m, pos_m, rl_m, cigar_m, ro, pos_s, rl, cigar = read.qname.split('|')
+    rs, chrom_s, cpy_s, ro1_s, pos_m, rl_m, cigar_m, ro2_s, pos_s, rl, cigar = read.qname.split('|')
 
   sim_corr_chrom, sim_corr_pos = int(chrom_s), int(pos_s)
 
@@ -205,7 +205,7 @@ def parse_read(read, mate, df, n):
           elif op == 2:  # D
             correct_pos += cnt
 
-  df['chrom_copy'][n] = int(cpy_s)
+  df['copy_and_strand'][n] = int(cpy_s) | int(ro1_s) << 2 | int(ro2_s) << 3
   df[mate + '_correct_p1'][n] = (sim_corr_chrom << 29) | sim_corr_pos
   df[mate + '_correct_p2'][n] = df[mate + '_correct_p1'][n] + read.rlen
   df[mate + '_aligned_p1'][n] = ((read.reference_id + 1) << 29) | read.pos if a_mapped else 0

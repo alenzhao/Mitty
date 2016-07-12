@@ -81,7 +81,9 @@ def get_bdf_cols():
   """
   qh = [
     ('qname_hash', np.int64),  # allows us to find reads by qname. Immune to sort order etc.
-    ('chrom_copy', np.uint8)    # Copy of chrom this read came from
+    ('copy_and_strand', np.uint8)    # bits 0,1 - copy of chromosome this read came from (00, 01)
+                                     # bit  2   - strand of mate1 (0 = forward, 1 = reverse)
+                                     # bit  3   - strand of mate2 (0 = forward, 1 = reverse)
   ]
   # Regular info for simulated BAMs. Needs to be duplicated for mate1 and mate2
   reg = [
