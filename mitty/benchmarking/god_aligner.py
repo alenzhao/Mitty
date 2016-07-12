@@ -1,4 +1,4 @@
-import json
+from string import translate
 import sys
 import os
 import time
@@ -11,6 +11,7 @@ import pysam
 import click
 
 from mitty.version import __version__
+from mitty.lib import DNA_complement
 
 
 logger = logging.getLogger(__name__)
@@ -193,8 +194,17 @@ def process_template(template, fp):
   r1.reference_id = int(chrom_s) - 1
   r1.pos = int(pos_s1)
   r1.cigarstring = cigar1
-  r1.seq = template[0][1]  # Second line is the base sequence
-  r1.qual = template[0][3]  # Fourth line is the base quality
+
+  seq = template[0][1]  # Second line is the base sequence
+  qual = template[0][3]  # Fourth line is the base quality
+
+  r1.is_reverse = int(ro_s1)
+  if r1.is_reverse:
+    r1.seq = translate(seq, DNA_complement)[::-1]
+    r1.qual = qual[::-1]
+  else:
+    r1.seq = seq
+    r1.qual = qual
   r1.is_paired = False
 
   # TODO: Fix this in the simulator
@@ -214,8 +224,17 @@ def process_template(template, fp):
     r2.reference_id = int(chrom_s) - 1
     r2.pos = int(pos_s2)
     r2.cigarstring = cigar2
-    r2.seq = template[1][1]  # Second line is the base sequence
-    r2.qual = template[1][3]  # Fourth line is the base quality
+
+    seq = template[1][1]  # Second line is the base sequence
+    qual = template[1][3]  # Fourth line is the base quality
+
+    r2.is_reverse = int(ro_s2)
+    if r2.is_reverse:
+      r2.seq = translate(seq, DNA_complement)[::-1]
+      r2.qual = qual[::-1]
+    else:
+      r2.seq = seq
+      r2.qual = qual
 
     # TODO: Fix this in the simulator
     cigar_ops = r2.cigartuples
