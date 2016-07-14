@@ -40,6 +40,7 @@ setup(
         'call-diff = mitty.benchmarking.call_diff:cli',
         'df2bam = mitty.benchmarking.df2bam:cli',
         'df2vcf = mitty.benchmarking.df2vcf:cli',
+        'filterdf = mitty.benchmarking.filterdf:cli',
 
         # Plotting functions
         'mq = mitty.benchmarking.plotting.mq:cli',
