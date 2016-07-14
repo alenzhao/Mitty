@@ -36,11 +36,14 @@ def cli(df_fname, filter, outdf, block_size, v):
     df_fname, tn, columns=None, block_size=block_size):
     st.append(tn, df.query(filter), data_columns=data_columns, index=False)
     t1 = time.time()
-    logger.debug('Took {:0.10}s to process {} rows ({:0.10} rows/s)'.format(t1 - t0, nrows, nrows / (t1 - t0)))
+    logger.debug('Took {:0.10}s to process {} rows ({:0.10} rows/s)'.format(t1 - t0, df.shape[0], df.shape[0] / (t1 - t0)))
 
-  st.create_table_index(tn, optlevel=9, kind='full')
   t1 = time.time()
   logger.debug('Took {:0.10}s to process {} rows ({:0.10} rows/s)'.format(t1 - t0, nrows, nrows / (t1 - t0)))
+
+  st.create_table_index(tn, optlevel=9, kind='full')
+  t2 = time.time()
+  logger.debug('Took {:0.10}s to index'.format(t2 - t1))
 
 
 if __name__ == '__main__':
