@@ -102,6 +102,7 @@ def process_multi_threaded(fastq, bam, bam_hdr, t, max_templates):
   samtools_cat(bam, file_fragments)
 
 
+# This is only for debugging
 def process_single_threaded(fastq, bam, bam_hdr, max_templates):
   in_queue = Queue()
 
@@ -262,9 +263,12 @@ def process_template(template, fp):
 def samtools_cat(bam, file_fragments):
   cmd = ['samtools', 'cat', '-o', bam] + file_fragments
   subprocess.call(cmd)
+  logger.debug('Combined bam fragments using samtools')
+
   # Now cleanup the fragments
-  # for frag in file_fragments:
-  #   os.remove(frag)
+  for frag in file_fragments:
+    logger.debug('Removing {}'.format(frag))
+    os.remove(frag)
 
 
 if __name__ == "__main__":
